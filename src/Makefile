@@ -1,5 +1,5 @@
 NVCC = /usr/local/cuda/bin/nvcc
-NVCCFLAGS = -g -O3 $(INC) -arch=sm_11 --ptxas-options=-v -Xcompiler -fopenmp -Xcompiler -D_REENTRANT -Xcompiler -D_FILE_OFFSET_BITS=64 -Xptxas -abi=no -m64 #-Xptxas -dlcm=cg # disable L1 cache
+NVCCFLAGS = -g -O3 $(INC) -arch=sm_11 --ptxas-options=-v -Xcompiler -fopenmp -Xcompiler -D_REENTRANT -Xcompiler -D_FILE_OFFSET_BITS=64 -Xptxas -abi=no -m64 -I. #-Xptxas -dlcm=cg # disable L1 cache
 
 all: cuda_correlator
 
