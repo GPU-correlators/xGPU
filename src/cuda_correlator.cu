@@ -34,7 +34,7 @@ typedef std::complex<char> ComplexInput;
 #define GBYTE (1024llu*1024llu*1024llu)
 
 #define NPOL 2
-#define NSTATION 32ll
+#define NSTATION 256ll
 #define SIGNAL_SIZE GBYTE
 #define SAMPLES SIGNAL_SIZE / (NSTATION*NPOL*sizeof(ComplexInput))
 #define NFREQUENCY 10ll
@@ -45,7 +45,7 @@ typedef std::complex<char> ComplexInput;
 //#define PIPE_LENGTH 1
 //#define NTIME_PIPE NTIME / PIPE_LENGTH
 
-#define NTIME_PIPE 100
+#define NTIME_PIPE 1000
 #define PIPE_LENGTH NTIME / NTIME_PIPE
 
 // how many pulsars are we binning for (Not implemented yet)
@@ -95,7 +95,7 @@ int main(int argc, char** argv) {
   printf("Calling GPU X-Engine\n");
   cudaXengine(cuda_matrix_h, array_h);
 
-  //checkResult(cuda_matrix_h, omp_matrix_h);
+  checkResult(cuda_matrix_h, omp_matrix_h);
 
   Complex *full_matrix_h = (Complex *) malloc(fullMatLength*sizeof(Complex));
 

@@ -1,5 +1,5 @@
 NVCC = /usr/local/cuda/bin/nvcc
-NVCCFLAGS = -g -O3 $(INC) -arch=sm_11 --ptxas-options=-v -Xcompiler -fopenmp -Xcompiler -D_REENTRANT -Xcompiler -D_FILE_OFFSET_BITS=64 -Xptxas -abi=no -m64 -I. #-Xptxas -dlcm=cg # disable L1 cache
+NVCCFLAGS = -O3 $(INC) -arch=sm_20 --ptxas-options=-v -Xcompiler -fopenmp -Xcompiler -D_REENTRANT -Xcompiler -D_FILE_OFFSET_BITS=64 -Xptxas -abi=no -m32 -I. #-Xptxas -dlcm=cg # disable L1 cache
 
 all: cuda_correlator
 
@@ -7,9 +7,9 @@ cuda_correlator: cuda_correlator.cu $(LIB) cuda_xengine.cu omp_xengine.cc cpu_ut
 	$(NVCC) $(NVCCFLAGS) cuda_correlator.cu cube/cube.c -o cuda_correlator $(LFLAGS)  
 
 count_cuda_correlator: cuda_correlator.cu $(LIB) cuda_xengine.cu omp_xengine.cc cpu_util.cc
-	$(NVCC) $(NVCCFLAGS) cuda_correlator.cu cube/cube.c -DCUBE_COUNT_MODE -o cuda_correlator $(LFLAGS) 
+	$(NVCC) $(NVCCFLAGS) cuda_correlator.cu cube/cube.c -DCUBE_COUNT_MODE -o cuda_correlator $(LFLAGS)  
 
-# FIXME? The test seems to fail on the timing run - why is this?
+# FIXME? The test seems to fail on the timing run - why is this? - summation is doubled for some reason
 time_cuda_correlator: cuda_correlator.cu $(LIB) cuda_xengine.cu omp_xengine.cc cpu_util.cc
 	$(NVCC) $(NVCCFLAGS) cuda_correlator.cu cube/cube.c -DCUBE_TIME_MODE -o cuda_correlator $(LFLAGS) 
 

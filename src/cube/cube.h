@@ -4,11 +4,11 @@
 // maximum number of kernels CUBE can track
 #define CUBE_KERNEL_MAX 100
 
-#if (__CUDA_ARCH__ > 110)
+//#if (__CUDA_ARCH__ > 110)
 #define ulonglong unsigned long long int
-#else 
-#define ulonglong unsigned int
-#endif
+//#else 
+//#define ulonglong unsigned int
+//#endif
 
 #if defined(__cplusplus)
 extern "C" {
