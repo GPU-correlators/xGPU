@@ -1,0 +1,20 @@
+#!/bin/bash
+# This is bench
+# Automatically benchmark cuda performance for the fxgpu repo
+# Usage: bench
+# Output: Prints cube_benchmark.log to the screen with more
+
+make clean
+make count_cuda_correlator
+./cuda_correlator
+make clean
+make time_cuda_correlator
+./cuda_correlator
+make clean
+make async_count_cuda_correlator
+./cuda_correlator
+make clean
+make async_time_cuda_correlator
+./cuda_correlator
+more cube_benchmark.log
+more cube_async_benchmark.log
