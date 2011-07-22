@@ -1,0 +1,63 @@
+Release Notes for xGPU v0.0.1
+-----------------------------
+
+Overview:
+
+xGPU is a library for performing the cross-multiplication step of the
+FX correlator algorithm, which is popular for radio astronomy signal
+processing.
+
+Software Compatibility:
+
+The library has been tested under Linux (Ubuntu 10.04 and 10.10) and
+Mac OS X using release 4.0 of the CUDA toolkit.  Default compilation
+creates a 32-bit binary, so 64-bit systems will require 32-bit c and
+c++ libraries installed for cross-compilation (gcc and g++ multilib).
+
+Hardward Compatibility:
+
+For a list of supported devices see,
+
+http://www.nvidia.com/object/cuda_learn_products.html
+
+While this library will run on pre-Fermi GPUs with appropriate changes
+to the Makefile, note that the kernels make Fermi-specific
+optimizations and so will likely lead to sub-standard performance on
+sm1.x CUDA architectures.
+
+Using the Library:
+
+This library has been designed to be interfaced with other parts of an
+FX correlator pipeline, and so not much can be achieved in isolation.
+A simple test program "cuda_correlator.cu" is included which performs
+cross-multiplication on the host and the device and verifies the
+device obtained the correct answer.  The many options regarding number
+of stations, frequency channels etc. are set in the top of this file.
+
+Benchmarking Performance:
+
+xGPU includes an additional benchmarking utility: CUBE - CUDA
+BEnchmarking.  This uses C-preprocessor directive to obtain arithmetic
+throughput and device memory bandwidth performance.  To invoke a
+benchmarking run, one simply has to execute the "bench" script.  This
+will perform four runs of the test.  The first two of these are
+concerned with counting all flops and transfers performed by the
+kernels, and measuring the time taken for each of these steps.  The
+latter two are concerened with measuring the asynchronous performance
+of the device<->host transfers.  By default the results are printed to
+stdout, though they are output to file (cube_benchmark.log and
+cube_benchmark.csv).
+
+Acknowledging xGPU:
+
+If you find this code useful in your work, please cite:
+
+M. A. Clark, P. C. La Plante, and L. J. Greenhill, "Accelerating Radio
+Astronomy Cross-Correlation with Graphics Processing units",
+[arXiv:1107.4264 [astro-ph]].
+
+Authors:
+
+Michael Clark (Harvard University)
+Paul La Plante (Loyola University Maryland)
+Lincoln Greenhill (Harvard-Smithsonian Center for Astrophysics)
