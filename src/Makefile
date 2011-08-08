@@ -1,5 +1,15 @@
+ifeq ($(strip $(OSTYPE)),cygwin)
+NVCC = nvcc
+NVCCFLAGS = --compiler-bindir "c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin" -L"c:\Program Files\Microsoft SDKs\Windows\v7.1\Lib" -Xcompiler /openmp
+else
 NVCC = /usr/local/cuda/bin/nvcc
-NVCCFLAGS = -O3 $(INC) -arch=sm_20 --ptxas-options=-v -Xcompiler -fopenmp -Xcompiler -D_REENTRANT -Xcompiler -D_FILE_OFFSET_BITS=64 -Xptxas -abi=no -m32 -I. #-Xptxas -dlcm=cg # disable L1 cache
+NVCCFLAGS = -Xcompiler -fopenmp -Xcompiler -D_REENTRANT 
+endif
+
+NVCCFLAGS += -O3 -arch=sm_20 -Xptxas -abi=no -m32 -I. --ptxas-options=-v 
+
+#NVCCFLAGS += -Xptxas -dlcm=cg # disable L1 cache
+
 
 all: cuda_correlator
 

@@ -75,7 +75,6 @@ int main(int argc, char** argv) {
 
   unsigned long long vecLength = NFREQUENCY * NTIME * NSTATION * NPOL;
 
-  int fullMatLength = NFREQUENCY * NSTATION*NSTATION*NPOL*NPOL;
 
   // perform host memory allocation
   int packedMatLength = NFREQUENCY * ((NSTATION+1)*(NSTATION/2)*NPOL*NPOL);
@@ -90,25 +89,30 @@ int main(int argc, char** argv) {
 
   Complex *omp_matrix_h = (Complex *) malloc(packedMatLength*sizeof(Complex));
   printf("Calling CPU X-Engine\n");
+#if (CUBE_MODE == CUBE_DEFAULT)
   ompXengine(omp_matrix_h, array_h);
+#endif
 
   printf("Calling GPU X-Engine\n");
   cudaXengine(cuda_matrix_h, array_h);
 
+#if (CUBE_MODE == CUBE_DEFAULT)
   checkResult(cuda_matrix_h, omp_matrix_h);
 
+  int fullMatLength = NFREQUENCY * NSTATION*NSTATION*NPOL*NPOL;
   Complex *full_matrix_h = (Complex *) malloc(fullMatLength*sizeof(Complex));
 
   // convert from packed triangular to full matrix
   extractMatrix(full_matrix_h, cuda_matrix_h);
+
+  free(full_matrix_h);
+#endif
 
   //free host memory
   free(omp_matrix_h);
 
   // free gpu memory
   xFree(array_h, cuda_matrix_h);
-
-  free(full_matrix_h);
 
   return 0;
 }

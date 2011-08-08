@@ -5,16 +5,16 @@
 # Output: Prints cube_benchmark.log to the screen with more
 
 make clean
-make count_cuda_correlator
+make count_cuda_correlator OSTYPE=$OSTYPE
 ./cuda_correlator
 make clean
-make time_cuda_correlator
+make time_cuda_correlator OSTYPE=$OSTYPE
 ./cuda_correlator
 make clean
-make async_count_cuda_correlator
+make async_count_cuda_correlator OSTYPE=$OSTYPE
 ./cuda_correlator
 make clean
-make async_time_cuda_correlator
+make async_time_cuda_correlator OSTYPE=$OSTYPE
 ./cuda_correlator
 more cube_benchmark.log
 more cube_async_benchmark.log

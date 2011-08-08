@@ -1,8 +1,5 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include <sys/time.h>
-#include <sys/utsname.h>
-#include <time.h>
 #include <string.h>
 
 #include "cube.h"
