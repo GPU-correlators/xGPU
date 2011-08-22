@@ -30,22 +30,26 @@ typedef std::complex<char> ComplexInput;
 #define SCALE 16129.0f // need to rescale result 
 #endif
 
+#define TRIANGULAR_ORDER 1000
+#define REAL_IMAG_TRIANGULAR_ORDER 2000
+#define MATRIX_ORDER REAL_IMAG_TRIANGULAR_ORDER
+
 // size = freq * time * station * pol *sizeof(ComplexInput)
 #define GBYTE (1024llu*1024llu*1024llu)
 
 #define NPOL 2
-#define NSTATION 256ll
+#define NSTATION 5632ll
 #define SIGNAL_SIZE GBYTE
 #define SAMPLES SIGNAL_SIZE / (NSTATION*NPOL*sizeof(ComplexInput))
-#define NFREQUENCY 10ll
-#define NTIME 1000ll //SAMPLES / NFREQUENCY
+#define NFREQUENCY 1ll
+#define NTIME 8000ll //SAMPLES / NFREQUENCY
 #define NBASELINE ((NSTATION+1)*(NSTATION/2))
 #define NDIM 2
 
 //#define PIPE_LENGTH 1
 //#define NTIME_PIPE NTIME / PIPE_LENGTH
 
-#define NTIME_PIPE 1000
+#define NTIME_PIPE NTIME
 #define PIPE_LENGTH NTIME / NTIME_PIPE
 
 // how many pulsars are we binning for (Not implemented yet)
@@ -53,6 +57,8 @@ typedef std::complex<char> ComplexInput;
 
 // whether we are writing the matrix back to device memory (used for benchmarking)
 int writeMatrix = 1;
+// this must be enabled for this option to work though, slightly hurts performance
+//#define WRITE_OPTION 
 
 typedef std::complex<float> Complex;
 
@@ -97,6 +103,8 @@ int main(int argc, char** argv) {
   cudaXengine(cuda_matrix_h, array_h);
 
 #if (CUBE_MODE == CUBE_DEFAULT)
+  
+  reorderMatrix(cuda_matrix_h);
   checkResult(cuda_matrix_h, omp_matrix_h);
 
   int fullMatLength = NFREQUENCY * NSTATION*NSTATION*NPOL*NPOL;

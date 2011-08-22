@@ -24,6 +24,8 @@ unsigned long long matLength;
 //memory pointers on the device
 ComplexInput *array_d[2];
 Complex *matrix_d;
+Complex *matrix_real_d;
+Complex *matrix_imag_d;
 
 // used for overlapping comms and compute
 cudaStream_t *streams;
@@ -69,7 +71,7 @@ __device__ void operator+=( float4 &a, const float4 b ) {
 }
 
 // device function to write out the matrix elements
-CUBE_DEVICE(void, write2x2, int &Col, int &Row, float4 *matrix, 
+CUBE_DEVICE(void, write2x2, int &Col, int &Row, float4 *matrix_real, float4 *matrix_imag, 
 	    float sum11XXreal, float sum11XXimag, float sum11XYreal, float sum11XYimag,
 	    float sum11YXreal, float sum11YXimag, float sum11YYreal, float sum11YYimag,
 	    float sum12XXreal, float sum12XXimag, float sum12XYreal, float sum12XYimag,
@@ -81,28 +83,51 @@ CUBE_DEVICE(void, write2x2, int &Col, int &Row, float4 *matrix,
   
   int f=blockIdx.y;
 
-  if(Col>Row)return;
+#if (MATRIX_ORDER == REAL_IMAG_TRIANGULAR_ORDER) // write out the real and imaginary components separately
+  matrix_real[f*NBASELINE + (Row*(Row+1)/2) + Col] += 
+    make_float4(SCALE*sum11XXreal, SCALE*sum11XYreal, SCALE*sum11YXreal, SCALE*sum11YYreal);
+  matrix_imag[f*NBASELINE + (Row*(Row+1)/2) + Col] += 
+    make_float4(SCALE*sum11XXimag, SCALE*sum11XYimag, SCALE*sum11YXimag, SCALE*sum11YYimag);
 
-  matrix[(f*NBASELINE + (Row*(Row+1)/2) + Col)*NPOL + 0] += 
+  matrix_real[f*NBASELINE + ((Row+1)*(Row+2)/2) + Col] += 
+    make_float4(SCALE*sum21XXreal, SCALE*sum21XYreal, SCALE*sum21YXreal, SCALE*sum21YYreal);
+  matrix_imag[f*NBASELINE + ((Row+1)*(Row+2)/2) + Col] += 
+    make_float4(SCALE*sum21XXimag, SCALE*sum21XYimag, SCALE*sum21YXimag, SCALE*sum21YYimag);
+
+  matrix_real[f*NBASELINE + ((Row+1)*(Row+2)/2) + (Col+1)] += 
+    make_float4(SCALE*sum22XXreal, SCALE*sum22XYreal, SCALE*sum22YXreal, SCALE*sum22YYreal);
+  matrix_imag[f*NBASELINE + ((Row+1)*(Row+2)/2) + (Col+1)] += 
+    make_float4(SCALE*sum22XXimag, SCALE*sum22XYimag, SCALE*sum22YXimag, SCALE*sum22YYimag);
+  
+  // Test if entire tile needs to be written or just 3 of 4 parts (exclude top-right)
+  if (Col<Row) {
+    matrix_real[f*NBASELINE + (Row*(Row+1)/2) + (Col+1)] += 
+      make_float4(SCALE*sum12XXreal, SCALE*sum12XYreal, SCALE*sum12YXreal, SCALE*sum12YYreal);
+    matrix_imag[f*NBASELINE + (Row*(Row+1)/2) + (Col+1)] += 
+      make_float4(SCALE*sum12XXimag, SCALE*sum12XYimag, SCALE*sum12YXimag, SCALE*sum12YYimag);
+  }
+#else  // standard triangular packed order
+  matrix_real[(f*NBASELINE + (Row*(Row+1)/2) + Col)*NPOL + 0] += 
     make_float4(SCALE*sum11XXreal, SCALE*sum11XXimag, SCALE*sum11XYreal, SCALE*sum11XYimag);
-  matrix[(f*NBASELINE + (Row*(Row+1)/2) + Col)*NPOL + 1] += 
+  matrix_real[(f*NBASELINE + (Row*(Row+1)/2) + Col)*NPOL + 1] += 
     make_float4(SCALE*sum11YXreal, SCALE*sum11YXimag, SCALE*sum11YYreal, SCALE*sum11YYimag);
-  matrix[(f*NBASELINE + ((Row+1)*(Row+2)/2) + Col)*NPOL + 0] += 
+  matrix_real[(f*NBASELINE + ((Row+1)*(Row+2)/2) + Col)*NPOL + 0] += 
     make_float4(SCALE*sum21XXreal, SCALE*sum21XXimag, SCALE*sum21XYreal, SCALE*sum21XYimag);
-  matrix[(f*NBASELINE + ((Row+1)*(Row+2)/2) + Col)*NPOL + 1] += 
+  matrix_real[(f*NBASELINE + ((Row+1)*(Row+2)/2) + Col)*NPOL + 1] += 
     make_float4(SCALE*sum21YXreal, SCALE*sum21YXimag, SCALE*sum21YYreal, SCALE*sum21YYimag);
-  matrix[(f*NBASELINE + ((Row+1)*(Row+2)/2) + (Col+1))*NPOL + 0] += 
+  matrix_real[(f*NBASELINE + ((Row+1)*(Row+2)/2) + (Col+1))*NPOL + 0] += 
     make_float4(SCALE*sum22XXreal, SCALE*sum22XXimag, SCALE*sum22XYreal, SCALE*sum22XYimag);
-  matrix[(f*NBASELINE + ((Row+1)*(Row+2)/2) + (Col+1))*NPOL + 1] += 
+  matrix_real[(f*NBASELINE + ((Row+1)*(Row+2)/2) + (Col+1))*NPOL + 1] += 
     make_float4(SCALE*sum22YXreal, SCALE*sum22YXimag, SCALE*sum22YYreal, SCALE*sum22YYimag);
   
   // Test if entire tile needs to be written or just 3 of 4 parts (exclude top-right)
   if (Col<Row) {
-    matrix[(f*NBASELINE + (Row*(Row+1)/2) + (Col+1))*NPOL + 0] += 
+    matrix_real[(f*NBASELINE + (Row*(Row+1)/2) + (Col+1))*NPOL + 0] += 
       make_float4(SCALE*sum12XXreal, SCALE*sum12XXimag, SCALE*sum12XYreal, SCALE*sum12XYimag);
-    matrix[(f*NBASELINE + (Row*(Row+1)/2) + (Col+1))*NPOL + 1] += 
+    matrix_real[(f*NBASELINE + (Row*(Row+1)/2) + (Col+1))*NPOL + 1] += 
       make_float4(SCALE*sum12YXreal, SCALE*sum12YXimag, SCALE*sum12YYreal, SCALE*sum12YYimag);
   }
+#endif
 
 }
 
@@ -197,7 +222,7 @@ CUBE_DEVICE(void, write2x2, int &Col, int &Row, float4 *matrix,
   sum22YYimag += row2Yimag * col2Yreal;					\
   sum22YYimag -= row2Yreal * col2Yimag;}
 
-CUBE_KERNEL(shared2x2float2, float4 *matrix, const int Nstation, const int write)
+CUBE_KERNEL(shared2x2float2, float4 *matrix_real, float4 *matrix_imag, const int Nstation, const int write)
 {
   CUBE_START;
 
@@ -237,6 +262,7 @@ CUBE_KERNEL(shared2x2float2, float4 *matrix, const int Nstation, const int write
   float *input0_p = input[0] + tid;
   float *input1_p = input[1] + tid;
   int array_index = f*Nstation*NPOL + tid;
+  //float array_index = f*Nstation*NPOL + tid;
   if (tid < 4*TILE_WIDTH) {
     array_index += 2*blockX*TILE_WIDTH*NPOL;
   } else {
@@ -250,13 +276,14 @@ CUBE_KERNEL(shared2x2float2, float4 *matrix, const int Nstation, const int write
 
 #pragma unroll 2
   for(int t=0; t<NTIME_PIPE-2; t+=2){
-  //for(float t=0.0f; t<(float)NTIME-2; /*t+=2.0f*/){
+    //for(float t=0.0f; t<(float)NTIME_PIPE-2.0f; /*t+=2.0f*/){
 
     __syncthreads();
 
     TWO_BY_TWO_COMPUTE(0);
 
     //t += 1.0f;
+    //LOAD(1, t);    
     LOAD(1, t+1);
 
     __syncthreads();
@@ -264,6 +291,7 @@ CUBE_KERNEL(shared2x2float2, float4 *matrix, const int Nstation, const int write
     TWO_BY_TWO_COMPUTE(1);
 
     //t += 1.0f;
+    //LOAD(0, t);
     LOAD(0, t+2);
   } 
 
@@ -273,10 +301,14 @@ CUBE_KERNEL(shared2x2float2, float4 *matrix, const int Nstation, const int write
   LOAD(1, NTIME_PIPE-1);
 
   __syncthreads();
+
+  if (Col > Row) return; // writes seem faster when this is pulled up here
   TWO_BY_TWO_COMPUTE(1);
   
+#ifdef WRITE_OPTION
   if (write) {
-    CUBE_DEVICE_CALL(write2x2, Col, Row, matrix,
+#endif
+    CUBE_DEVICE_CALL(write2x2, Col, Row, matrix_real, matrix_imag,
 		     sum11XXreal, sum11XXimag, sum11XYreal, sum11XYimag, 
 		     sum11YXreal, sum11YXimag, sum11YYreal, sum11YYimag, 
 		     sum12XXreal, sum12XXimag, sum12XYreal, sum12XYimag, 
@@ -288,7 +320,9 @@ CUBE_KERNEL(shared2x2float2, float4 *matrix, const int Nstation, const int write
 
     if (Col < Row) { CUBE_ADD_BYTES(256); } // need load and save
     else if (Col == Row) { CUBE_ADD_BYTES(192); } // need load and save
+#ifdef WRITE_OPTION
   }
+#endif
 
   if (Col < Row) { CUBE_ADD_FLOPS(NTIME_PIPE*128); }
   else if (Col == Row) { CUBE_ADD_FLOPS(NTIME_PIPE*96); }
@@ -336,6 +370,10 @@ void xInit(ComplexInput **array_h, Complex **matrix_h, int Nstat) {
   cudaMemset(array_d[1], '0', vecLengthPipe*sizeof(ComplexInput));
   cudaMemset(matrix_d, '0', matLength*sizeof(Complex));
   checkCudaError();
+
+  // set the pointer to the real and imaginary components of the matrix
+  matrix_real_d = matrix_d;
+  matrix_imag_d = matrix_d + matLength/2;
 
   // check NTIME_PIPE and PIPE_LENGTH are valid
   if (NTIME_PIPE % 4 != 0) {
@@ -413,6 +451,9 @@ void cudaXengine(Complex *matrix_h, ComplexInput *array_h) {
 
   CUBE_ASYNC_START(PIPELINE_LOOP);
 
+#ifdef POWER_LOOP
+  for (int q=0; ; q++) 
+#endif
   for (int p=1; p<PIPE_LENGTH; p++) {
     array_compute = array_d[(p+1)%2];
     array_load = array_d[p%2];
@@ -421,7 +462,7 @@ void cudaXengine(Complex *matrix_h, ComplexInput *array_h) {
     cudaBindTexture2D(0, tex2dfloat2, array_compute, channelDesc, NFREQUENCY*Nstation*NPOL, NTIME_PIPE, 
 		      NFREQUENCY*Nstation*NPOL*sizeof(ComplexInput));
     CUBE_ASYNC_KERNEL_CALL(shared2x2float2, dimGrid, dimBlock, 0, streams[1], 
-			   (float4*)matrix_d, Nstation, writeMatrix);
+			   (float4*)matrix_real_d, (float4*)matrix_imag_d, Nstation, writeMatrix);
     checkCudaError();
 
     // Download input data
@@ -438,7 +479,7 @@ void cudaXengine(Complex *matrix_h, ComplexInput *array_h) {
   // Final kernel calculation
   cudaBindTexture2D(0, tex2dfloat2, array_compute, channelDesc, NFREQUENCY*Nstation*NPOL, NTIME_PIPE, 
 		    NFREQUENCY*Nstation*NPOL*sizeof(ComplexInput));
-  CUBE_ASYNC_KERNEL_CALL(shared2x2float2, dimGrid, dimBlock, 0, streams[1], (float4*)matrix_d,
+  CUBE_ASYNC_KERNEL_CALL(shared2x2float2, dimGrid, dimBlock, 0, streams[1], (float4*)matrix_real_d, (float4*)matrix_imag_d,
 			 Nstation, writeMatrix);
   checkCudaError();
 

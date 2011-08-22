@@ -10,11 +10,15 @@ NVCCFLAGS += -O3 -arch=sm_20 -Xptxas -abi=no -m32 -I. --ptxas-options=-v
 
 #NVCCFLAGS += -Xptxas -dlcm=cg # disable L1 cache
 
+# this sets the pipeline to run in an infinite loop - for power measurement
+ifeq ($(strip $(POWER_LOOP)), yes)
+NVCCFLAGS += -DPOWER_LOOP
+endif
 
 all: cuda_correlator
 
 cuda_correlator: cuda_correlator.cu $(LIB) cuda_xengine.cu omp_xengine.cc cpu_util.cc
-	$(NVCC) $(NVCCFLAGS) cuda_correlator.cu cube/cube.c -o cuda_correlator $(LFLAGS)  
+	$(NVCC) $(NVCCFLAGS) cuda_correlator.cu cube/cube.c -o cuda_correlator $(LFLAGS)
 
 count_cuda_correlator: cuda_correlator.cu $(LIB) cuda_xengine.cu omp_xengine.cc cpu_util.cc
 	$(NVCC) $(NVCCFLAGS) cuda_correlator.cu cube/cube.c -DCUBE_COUNT_MODE -o cuda_correlator $(LFLAGS)  

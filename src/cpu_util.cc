@@ -8,6 +8,35 @@ void random_complex(ComplexInput* random_num, int length) {
   }
 }
 
+// reorder the matrix from REAL_IMAG_TRIANGULAR_ORDER to TRIANGULAR_ORDER
+void reorderMatrix(Complex *matrix) {
+
+#if MATRIX_ORDER == REAL_IMAG_TRIANGULAR_ORDER
+  size_t matLength = NFREQUENCY * ((NSTATION+1)*(NSTATION/2)*NPOL*NPOL) * (NPULSAR + 1);
+  Complex *tmp = new Complex[matLength];
+
+  for(int f=0; f<NFREQUENCY; f++){
+    for(int i=0; i<NSTATION; i++){
+      for (int j=0; j<=i; j++) {
+	int k = f*(NSTATION+1)*(NSTATION/2) + i*(i+1)/2 + j;
+        for (int pol1=0; pol1<NPOL; pol1++) {
+	  for (int pol2=0; pol2<NPOL; pol2++) {
+	    size_t index = (k*NPOL+pol1)*NPOL+pol2;
+	    tmp[index] = Complex(((float*)matrix)[index], ((float*)matrix)[index+matLength]);
+	  }
+	}
+      }
+    }
+  }
+
+  memcpy(matrix, tmp, matLength*sizeof(Complex));
+
+  delete []tmp;
+#endif
+
+  return;
+}
+
 //check that GPU calculation matches the CPU
 #define TOL 1e-1
 void checkResult(Complex *gpu, Complex *cpu) {
