@@ -6,7 +6,7 @@ NVCC = /usr/local/cuda/bin/nvcc
 NVCCFLAGS = -Xcompiler -fopenmp -Xcompiler -D_REENTRANT 
 endif
 
-NVCCFLAGS += -O3 -arch=sm_20 -Xptxas -abi=no -m32 -I. --ptxas-options=-v 
+NVCCFLAGS += -O3 -arch=sm_20 -Xptxas -abi=no -m32 -I. --ptxas-options=-v -prec-sqrt=false
 
 #NVCCFLAGS += -Xptxas -dlcm=cg # disable L1 cache
 
