@@ -8,10 +8,43 @@ void random_complex(ComplexInput* random_num, int length) {
   }
 }
 
-// reorder the matrix from REAL_IMAG_TRIANGULAR_ORDER to TRIANGULAR_ORDER
 void reorderMatrix(Complex *matrix) {
 
-#if MATRIX_ORDER == REAL_IMAG_TRIANGULAR_ORDER
+#if MATRIX_ORDER == REGISTER_TILE_TRIANGULAR_ORDER
+  // reorder the matrix from REGISTER_TILE_TRIANGULAR_ORDER to TRIANGULAR_ORDER
+
+  size_t matLength = NFREQUENCY * ((NSTATION/2+1)*(NSTATION/4)*NPOL*NPOL*4) * (NPULSAR + 1);
+  Complex *tmp = new Complex[matLength];
+  memset(tmp, '0', matLength);
+
+  for(int f=0; f<NFREQUENCY; f++) {
+    for(int i=0; i<NSTATION/2; i++) {
+      for (int rx=0; rx<2; rx++) {
+	for (int j=0; j<=i; j++) {
+	  for (int ry=0; ry<2; ry++) {
+	    int k = f*(NSTATION+1)*(NSTATION/2) + (2*i+rx)*(2*i+rx+1)/2 + 2*j+ry;
+	    int l = f*4*(NSTATION/2+1)*(NSTATION/4) + (2*ry+rx)*(NSTATION/2+1)*(NSTATION/4) + i*(i+1)/2 + j;
+	    for (int pol1=0; pol1<NPOL; pol1++) {
+	      for (int pol2=0; pol2<NPOL; pol2++) {
+		size_t tri_index = (k*NPOL+pol1)*NPOL+pol2;
+		size_t reg_index = (l*NPOL+pol1)*NPOL+pol2;
+		tmp[tri_index] = 
+		  Complex(((float*)matrix)[reg_index], ((float*)matrix)[reg_index+matLength]);
+	      }
+	    }
+	  }
+	}
+      }
+    }
+  }
+   
+  memcpy(matrix, tmp, matLength*sizeof(Complex));
+
+  delete []tmp;
+
+#elif MATRIX_ORDER == REAL_IMAG_TRIANGULAR_ORDER
+  // reorder the matrix from REAL_IMAG_TRIANGULAR_ORDER to TRIANGULAR_ORDER
+  
   size_t matLength = NFREQUENCY * ((NSTATION+1)*(NSTATION/2)*NPOL*NPOL) * (NPULSAR + 1);
   Complex *tmp = new Complex[matLength];
 

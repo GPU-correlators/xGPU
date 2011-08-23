@@ -17,6 +17,7 @@
 #define USE_GPU
 
 // uncomment to use 8-bit fixed point, comment out for 32-bit floating point
+
 //#define FIXED_POINT
 
 // set the data type accordingly
@@ -32,17 +33,18 @@ typedef std::complex<char> ComplexInput;
 
 #define TRIANGULAR_ORDER 1000
 #define REAL_IMAG_TRIANGULAR_ORDER 2000
-#define MATRIX_ORDER REAL_IMAG_TRIANGULAR_ORDER
+#define REGISTER_TILE_TRIANGULAR_ORDER 3000
+#define MATRIX_ORDER REGISTER_TILE_TRIANGULAR_ORDER
 
 // size = freq * time * station * pol *sizeof(ComplexInput)
 #define GBYTE (1024llu*1024llu*1024llu)
 
 #define NPOL 2
-#define NSTATION 5632ll
+#define NSTATION 256ll
 #define SIGNAL_SIZE GBYTE
 #define SAMPLES SIGNAL_SIZE / (NSTATION*NPOL*sizeof(ComplexInput))
-#define NFREQUENCY 1ll
-#define NTIME 8000ll //SAMPLES / NFREQUENCY
+#define NFREQUENCY 10ll
+#define NTIME 100ll //SAMPLES / NFREQUENCY
 #define NBASELINE ((NSTATION+1)*(NSTATION/2))
 #define NDIM 2
 
