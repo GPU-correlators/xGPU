@@ -48,7 +48,9 @@ texture<char2, 2, cudaReadModeNormalizedFloat> tex2dfloat2;
 #endif
 
 // array holding indices for which matrix we are doing the output to at a given iteration
-__device__ __constant__ unsigned char tIndex[NTIME_PIPE*NFREQUENCY];
+#if (NPULSAR > 0)
+__device__ __constant__ unsigned char tIndex[PIPE_LENGTH*NFREQUENCY];
+#endif
 
 #define checkCudaError() do {                           \
     cudaError_t error = cudaGetLastError();		\
@@ -421,13 +423,13 @@ void xInit(ComplexInput **array_h, Complex **matrix_h, int Nstat) {
 
   channelDesc = cudaCreateChannelDesc<COMPLEX_INPUT>();
 
-  /*unsigned char timeIndex[PIPE_LENGTH*NFREQUENCY];
+#if NPULSAR > 0
+  unsigned char timeIndex[PIPE_LENGTH*NFREQUENCY];
   for (int tf=0; tf<PIPE_LENGTH*NFREQUENCY; tf++) timeIndex[tf] = 0;
-  cudaMemcpyToSymbol(tIndex, timeIndex, PIPE_LENGTH*NFREQUENCY*sizeof(unsigned char), cudaMemcpyHostToDevice);  */
+  cudaMemcpyToSymbol(tIndex, timeIndex, PIPE_LENGTH*NFREQUENCY*sizeof(unsigned char), cudaMemcpyHostToDevice);
 
   checkCudaError();
 
-#if 0
   // check symbols are copied over
   unsigned char timeIndex2[PIPE_LENGTH*NFREQUENCY];
   cudaMemcpyFromSymbol(timeIndex2[t], tIndex[t], PIPE_LENGTH*NFREQUENCY*sizeof(unsigned char), cudaMemcpyDeviceToHost);  

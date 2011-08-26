@@ -18,7 +18,7 @@
 
 // uncomment to use 8-bit fixed point, comment out for 32-bit floating point
 
-//#define FIXED_POINT
+#define FIXED_POINT
 
 // set the data type accordingly
 #ifndef FIXED_POINT
@@ -44,14 +44,14 @@ typedef std::complex<char> ComplexInput;
 #define SIGNAL_SIZE GBYTE
 #define SAMPLES SIGNAL_SIZE / (NSTATION*NPOL*sizeof(ComplexInput))
 #define NFREQUENCY 10ll
-#define NTIME 100ll //SAMPLES / NFREQUENCY
+#define NTIME 1000ll //SAMPLES / NFREQUENCY
 #define NBASELINE ((NSTATION+1)*(NSTATION/2))
 #define NDIM 2
 
 //#define PIPE_LENGTH 1
 //#define NTIME_PIPE NTIME / PIPE_LENGTH
 
-#define NTIME_PIPE NTIME
+#define NTIME_PIPE 100
 #define PIPE_LENGTH NTIME / NTIME_PIPE
 
 // how many pulsars are we binning for (Not implemented yet)
