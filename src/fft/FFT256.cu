@@ -27,7 +27,7 @@ __global__ void FFT256_device( float2 *dst, float2 *src )
     FFT16( a );
     
     twiddle<16>( a, lo, 256 );
-    transpose<16>( a, &smem[hi*17*16 + 17*lo], 1, &smem[hi*17*16+lo], 17, 0 );
+    transpose_br<16>( a, &smem[hi*17*16 + 17*lo], 1, &smem[hi*17*16+lo], 17, 0 );
     
     FFT16( a );
 

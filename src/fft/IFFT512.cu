@@ -20,12 +20,12 @@ __global__ void IFFT512_device( float2 *work )
     IFFT8( a );
 	
     itwiddle<8>( a, tid, 512 );
-    transpose<8>( a, &smem[hi*8+lo], 66, &smem[lo*66+hi], 8 );
+    transpose_br<8>( a, &smem[hi*8+lo], 66, &smem[lo*66+hi], 8 );
 	
     IFFT8( a );
 	
     itwiddle<8>( a, hi, 64);
-    transpose<8>( a, &smem[hi*8+lo], 8*9, &smem[hi*8*9+lo], 8, 0xE );
+    transpose_br<8>( a, &smem[hi*8+lo], 8*9, &smem[hi*8*9+lo], 8, 0xE );
     
     IFFT8( a );
 

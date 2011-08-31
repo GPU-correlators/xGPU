@@ -28,7 +28,7 @@ __global__ void FFT1024_device( float2 *dst, float2 *src )
     
     twiddle<16>( a, tid, 1024 );
     int il[] = {0,1,2,3, 16,17,18,19, 32,33,34,35, 48,49,50,51};
-    transpose<16>( a, &smem[lo4*65+hi4], 4, &smem[lo4*65+hi4*4], il );
+    transpose_br<16>( a, &smem[lo4*65+hi4], 4, &smem[lo4*65+hi4*4], il );
     
     FFT4x4( a );
 

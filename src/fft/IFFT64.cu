@@ -25,7 +25,7 @@ __global__ void IFFT64_device( float2 *work )
     IFFT8( a );
     
     itwiddle<8>( a, lo, 64 );
-    transpose<8>( a, &smem[hi*8*9+lo*9], 1, &smem[hi*8*9+lo], 9, 0 );
+    transpose_br<8>( a, &smem[hi*8*9+lo*9], 1, &smem[hi*8*9+lo], 9, 0 );
     
     IFFT8( a );
 

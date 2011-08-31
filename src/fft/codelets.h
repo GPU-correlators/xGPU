@@ -371,7 +371,13 @@ template<int radix>inline __device__ void itwiddle_straight( float2 *a, int i, i
 //
 //  transpose via shared memory, input is in bit-reversed layout
 //
-template<int n> inline __device__ void transpose( float2 *a, float *s, int ds, float *l, int dl, int sync = 0xf )
+/* 
+   s - initial store pointer
+   ds - store stride
+   l - initial load pointer
+   dl - load stride
+ */
+template<int n> inline __device__ void transpose_br( float2 *a, float *s, int ds, float *l, int dl, int sync = 0xf )
 {
     storex<n>( a, s, ds );	if( sync&8 ) __syncthreads();
     loadx<n> ( a, l, dl );	if( sync&4 ) __syncthreads();
@@ -379,7 +385,7 @@ template<int n> inline __device__ void transpose( float2 *a, float *s, int ds, f
     loady<n> ( a, l, dl );  if( sync&1 ) __syncthreads();
 }
 
-template<int n> inline __device__ void transpose( float2 *a, float *s, int ds, float *l, int *il, int sync = 0xf )
+template<int n> inline __device__ void transpose_br( float2 *a, float *s, int ds, float *l, int *il, int sync = 0xf )
 {
     storex<n>( a, s, ds );  if( sync&8 ) __syncthreads();
     loadx<n> ( a, l, il );  if( sync&4 ) __syncthreads();
