@@ -1,12 +1,14 @@
+CUDA_LIBDIR ?= /opt/cuda/lib65
+
 ifeq ($(strip $(OSTYPE)),cygwin)
 NVCC = nvcc
 NVCCFLAGS = --compiler-bindir "c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin" -L"c:\Program Files\Microsoft SDKs\Windows\v7.1\Lib" -Xcompiler /openmp
 else
 NVCC = /usr/local/cuda/bin/nvcc
-NVCCFLAGS = -Xcompiler -fopenmp -Xcompiler -D_REENTRANT 
+NVCCFLAGS = -Xcompiler -fopenmp -Xcompiler -D_REENTRANT -L$(CUDA_LIBDIR)
 endif
 
-NVCCFLAGS += -O3 -arch=sm_20 -Xptxas -abi=no -m32 -I. --ptxas-options=-v -prec-sqrt=false
+NVCCFLAGS += -O3 -arch=sm_20 -Xptxas -abi=no -I. --ptxas-options=-v -prec-sqrt=false
 
 #NVCCFLAGS += -Xptxas -dlcm=cg # disable L1 cache
 
