@@ -36,7 +36,7 @@ async_time_cuda_correlator: cuda_correlator.cu $(LIB) cuda_xengine.cu omp_xengin
 	$(NVCC) $(NVCCFLAGS) cuda_correlator.cu cube/cube.c -DCUBE_ASYNC_TIME_MODE -o cuda_correlator $(LFLAGS) 
 
 tags:
-	ctags --langmap=c++:+.cu -R .
+	ctags -R .
 
 clean:
 	rm -f ./cuda_correlator
