@@ -4,7 +4,11 @@ void random_complex(ComplexInput* random_num, int length) {
   for(int i=0; i<length; i++){
     a = ((rand()-RAND_MAX/2) / (float)(RAND_MAX/2));
     b = ((rand()-RAND_MAX/2) / (float)(RAND_MAX/2));
-    random_num[i] = ComplexInput(SCALE*a,SCALE*b);
+#ifndef FIXED_POINT
+    random_num[i] = ComplexInput(a,b);
+#else
+    random_num[i] = ComplexInput(127*a,127*b);
+#endif
   }
 }
 
