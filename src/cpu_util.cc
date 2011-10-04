@@ -75,8 +75,13 @@ void reorderMatrix(Complex *matrix) {
 }
 
 //check that GPU calculation matches the CPU
+//
+// verbose=0 means just print summary.
+// verbsoe=1 means print each differing basline/channel.
+// verbose=2 and array_h!=0 means print each differing baseline and each input
+//           sample that contributed to it.
 #define TOL 1e-1
-void checkResult(Complex *gpu, Complex *cpu) {
+void checkResult(Complex *gpu, Complex *cpu, int verbose=0, ComplexInput *array_h=0) {
 
   printf("Checking result...\n"); fflush(stdout);
 
@@ -89,9 +94,26 @@ void checkResult(Complex *gpu, Complex *cpu) {
         for (int pol1=0; pol1<NPOL; pol1++) {
 	  for (int pol2=0; pol2<NPOL; pol2++) {
 	    int index = (k*NPOL+pol1)*NPOL+pol2;
-	    if (abs(cpu[index] - gpu[index]) / abs(cpu[index]) > TOL) {
-	      printf("%d %d %d %d %d %d %d %f  %f  %f  %f\n", f, i, j, k, pol1, pol2, index, 
-		     real(cpu[index]), real(gpu[index]), imag(cpu[index]), imag(gpu[index]));
+	    if((abs(cpu[index]) == 0 && abs(gpu[index]) > TOL)
+	    || (abs(cpu[index] - gpu[index]) / abs(cpu[index]) > TOL)) {
+              if(verbose > 0) {
+                printf("%d %d %d %d %d %d %d %g  %g  %g  %g (%g %g)\n", f, i, j, k, pol1, pol2, index,
+                       real(cpu[index]), real(gpu[index]), imag(cpu[index]), imag(gpu[index]), abs(cpu[index]), abs(gpu[index]));
+                if(verbose > 1 && array_h) {
+                  Complex sum(0,0);
+                  for(int t=0; t<NTIME; t++) {
+                    ComplexInput in0 = array_h[t*NFREQUENCY*NSTATION*2 + f*NSTATION*2 + i*2 + pol1];
+                    ComplexInput in1 = array_h[t*NFREQUENCY*NSTATION*2 + f*NSTATION*2 + j*2 + pol2];
+                    Complex prod = convert(in0) * conj(convert(in1));
+                    sum += prod;
+                    printf(" %d (%4g,%4g) (%4g,%4g) -> (%6g, %6g)\n", t,
+                        (float)real(in0), (float)imag(in0),
+                        (float)real(in1), (float)imag(in1),
+                        (float)real(prod), (float)imag(prod));
+                  }
+                  printf("                              (%6g, %6g)\n", real(sum), imag(sum));
+                }
+              }
 	      error++;
 	    }
 	  }
