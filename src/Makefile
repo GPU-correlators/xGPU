@@ -1,10 +1,10 @@
-CUDA_LIBDIR ?= /opt/cuda/lib65
+CUDA_LIBDIR ?= /opt/cuda/lib64
 
 ifeq ($(strip $(OSTYPE)),cygwin)
 NVCC = nvcc
 NVCCFLAGS = --compiler-bindir "c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin" -L"c:\Program Files\Microsoft SDKs\Windows\v7.1\Lib" -Xcompiler /openmp
 else
-NVCC = /usr/local/cuda/bin/nvcc
+NVCC = nvcc
 NVCCFLAGS = -Xcompiler -fopenmp -Xcompiler -D_REENTRANT -L$(CUDA_LIBDIR)
 endif
 
