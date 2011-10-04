@@ -78,6 +78,18 @@ Complex convert(const ComplexInput &b) {
 
 int main(int argc, char** argv) {
 
+  unsigned int seed = 1;
+  int verbose = 0;
+
+  if(argc>1) {
+    seed = strtoul(argv[1], NULL, 0);
+  }
+  if(argc>2) {
+    verbose = strtoul(argv[2], NULL, 0);
+  }
+
+  srand(seed);
+
   printf("Correlating %llu stations with %llu signals, with %llu channels and integration length %llu\n",
 	 NSTATION, SAMPLES, NFREQUENCY, NTIME);
 
@@ -107,7 +119,7 @@ int main(int argc, char** argv) {
 #if (CUBE_MODE == CUBE_DEFAULT)
   
   reorderMatrix(cuda_matrix_h);
-  checkResult(cuda_matrix_h, omp_matrix_h);
+  checkResult(cuda_matrix_h, omp_matrix_h, verbose, array_h);
 
   int fullMatLength = NFREQUENCY * NSTATION*NSTATION*NPOL*NPOL;
   Complex *full_matrix_h = (Complex *) malloc(fullMatLength*sizeof(Complex));
