@@ -470,9 +470,12 @@ void cudaXengine(Complex *matrix_h, ComplexInput *array_h) {
   //allocated exactly as many thread blocks as are needed
   dim3 dimGrid(((Nblock/2+1)*(Nblock/2))/2, NFREQUENCY);
 
-  // Create events used to record the completion of a given kernel
-  cudaEvent_t copyCompletion;
-  cudaEventCreate(&copyCompletion);
+  // Create events used to record the completion of the device-host transfer and kernels
+  cudaEvent_t copyCompletion[2], kernelCompletion[2];
+  for (int i=0; i<2; i++) {
+    cudaEventCreate(&kernelCompletion[i]);
+    cudaEventCreate(&copyCompletion[i]);
+  }
   checkCudaError();
 
   CUBE_ASYNC_START(ENTIRE_PIPELINE);
@@ -480,7 +483,7 @@ void cudaXengine(Complex *matrix_h, ComplexInput *array_h) {
   // Need to fill pipeline before loop
   ComplexInput *array_hp = &array_h[0*NTIME_PIPE * NFREQUENCY * Nstation * NPOL];
   CUBE_ASYNC_COPY_CALL(array_d[0], array_hp, vecLengthPipe*sizeof(ComplexInput), cudaMemcpyHostToDevice, streams[0]);
-  cudaEventRecord(copyCompletion, streams[0]); // record the completion of the h2d transfer
+  cudaEventRecord(copyCompletion[0], streams[0]); // record the completion of the h2d transfer
   checkCudaError();
 
   CUBE_ASYNC_START(PIPELINE_LOOP);
@@ -495,15 +498,17 @@ void cudaXengine(Complex *matrix_h, ComplexInput *array_h) {
     // Kernel Calculation
     cudaBindTexture2D(0, tex2dfloat2, array_compute, channelDesc, NFREQUENCY*Nstation*NPOL, NTIME_PIPE, 
 		      NFREQUENCY*Nstation*NPOL*sizeof(ComplexInput));
-    cudaStreamWaitEvent(streams[1], copyCompletion, 0); // only start the kernel once the h2d transfer is complete
+    cudaStreamWaitEvent(streams[1], copyCompletion[(p+1)%2], 0); // only start the kernel once the h2d transfer is complete
     CUBE_ASYNC_KERNEL_CALL(shared2x2float2, dimGrid, dimBlock, 0, streams[1], 
 			   (float4*)matrix_real_d, (float4*)matrix_imag_d, Nstation, writeMatrix);
+    cudaEventRecord(kernelCompletion[(p+1)%2], streams[1]); // record the completion of the h2d transfer
     checkCudaError();
 
     // Download input data
     ComplexInput *array_hp = &array_h[p*NTIME_PIPE * NFREQUENCY * Nstation * NPOL];
+    cudaStreamWaitEvent(streams[0], kernelCompletion[p%2], 0); // only start the transfer once the kernel has completed
     CUBE_ASYNC_COPY_CALL(array_load, array_hp, vecLengthPipe*sizeof(ComplexInput), cudaMemcpyHostToDevice, streams[0]);
-    cudaEventRecord(copyCompletion, streams[0]); // record the completion of the h2d transfer
+    cudaEventRecord(copyCompletion[p%2], streams[0]); // record the completion of the h2d transfer
     checkCudaError();
   }
 
@@ -513,7 +518,7 @@ void cudaXengine(Complex *matrix_h, ComplexInput *array_h) {
   // Final kernel calculation
   cudaBindTexture2D(0, tex2dfloat2, array_compute, channelDesc, NFREQUENCY*Nstation*NPOL, NTIME_PIPE, 
 		    NFREQUENCY*Nstation*NPOL*sizeof(ComplexInput));
-  cudaStreamWaitEvent(streams[1], copyCompletion, 0);
+  cudaStreamWaitEvent(streams[1], copyCompletion[1], 0);
   CUBE_ASYNC_KERNEL_CALL(shared2x2float2, dimGrid, dimBlock, 0, streams[1], (float4*)matrix_real_d, (float4*)matrix_imag_d,
 			 Nstation, writeMatrix);
   checkCudaError();
@@ -524,5 +529,9 @@ void cudaXengine(Complex *matrix_h, ComplexInput *array_h) {
 
   CUBE_ASYNC_END(ENTIRE_PIPELINE);
 
-  cudaEventDestroy(copyCompletion);
+  for (int i=0; i<2; i++) {
+    cudaEventDestroy(copyCompletion[i]);
+    cudaEventDestroy(kernelCompletion[i]);
+  }
+  checkCudaError();
 }
