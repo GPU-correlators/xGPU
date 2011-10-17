@@ -518,7 +518,7 @@ void cudaXengine(Complex *matrix_h, ComplexInput *array_h) {
   // Final kernel calculation
   cudaBindTexture2D(0, tex2dfloat2, array_compute, channelDesc, NFREQUENCY*Nstation*NPOL, NTIME_PIPE, 
 		    NFREQUENCY*Nstation*NPOL*sizeof(ComplexInput));
-  cudaStreamWaitEvent(streams[1], copyCompletion[1], 0);
+  cudaStreamWaitEvent(streams[1], copyCompletion[(PIPE_LENGTH+1)%2], 0);
   CUBE_ASYNC_KERNEL_CALL(shared2x2float2, dimGrid, dimBlock, 0, streams[1], (float4*)matrix_real_d, (float4*)matrix_imag_d,
 			 Nstation, writeMatrix);
   checkCudaError();
