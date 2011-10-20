@@ -7,7 +7,8 @@ void random_complex(ComplexInput* random_num, int length) {
 #ifndef FIXED_POINT
     random_num[i] = ComplexInput(a,b);
 #else
-    random_num[i] = ComplexInput(127*a,127*b);
+    //random_num[i] = ComplexInput(127*a,127*b);
+    random_num[i] = ComplexInput(-128,127*b);
 #endif
   }
 }

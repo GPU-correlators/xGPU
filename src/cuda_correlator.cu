@@ -40,18 +40,18 @@ typedef std::complex<char> ComplexInput;
 #define GBYTE (1024llu*1024llu*1024llu)
 
 #define NPOL 2
-#define NSTATION 256ll
+#define NSTATION 1286ll
 #define SIGNAL_SIZE GBYTE
 #define SAMPLES SIGNAL_SIZE / (NSTATION*NPOL*sizeof(ComplexInput))
 #define NFREQUENCY 10ll
-#define NTIME 1000ll //SAMPLES / NFREQUENCY
+#define NTIME 20ll //SAMPLES / NFREQUENCY
 #define NBASELINE ((NSTATION+1)*(NSTATION/2))
 #define NDIM 2
 
 //#define PIPE_LENGTH 1
 //#define NTIME_PIPE NTIME / PIPE_LENGTH
 
-#define NTIME_PIPE 100
+#define NTIME_PIPE 4
 #define PIPE_LENGTH NTIME / NTIME_PIPE
 
 // how many pulsars are we binning for (Not implemented yet)
