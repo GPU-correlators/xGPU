@@ -92,6 +92,11 @@ int main(int argc, char** argv) {
 
   printf("Correlating %llu stations with %llu signals, with %llu channels and integration length %llu\n",
 	 NSTATION, SAMPLES, NFREQUENCY, NTIME);
+#ifndef FIXED_POINT
+  printf("Sending floating point data to GPU.\n");
+#else
+  printf("Sending fixed point data to GPU.\n");
+#endif
 
   unsigned long long vecLength = NFREQUENCY * NTIME * NSTATION * NPOL;
 
