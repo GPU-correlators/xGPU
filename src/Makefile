@@ -1,4 +1,5 @@
 CUDA_LIBDIR ?= /opt/cuda/lib64
+DEBUG ?= -O3
 
 ifeq ($(strip $(OSTYPE)),cygwin)
 NVCC = nvcc
@@ -8,7 +9,7 @@ NVCC = nvcc
 NVCCFLAGS = -Xcompiler -fopenmp -Xcompiler -D_REENTRANT -L$(CUDA_LIBDIR)
 endif
 
-NVCCFLAGS += -O3 -arch=sm_20 -Xptxas -abi=no -I. --ptxas-options=-v -prec-sqrt=false
+NVCCFLAGS += $(DEBUG) -arch=sm_20 -Xptxas -abi=no -I. --ptxas-options=-v -prec-sqrt=false
 
 #NVCCFLAGS += -Xptxas -dlcm=cg # disable L1 cache
 
