@@ -41,9 +41,11 @@ cudaChannelFormatDesc channelDesc;
 
 #ifndef FIXED_POINT
 // texture declaration for FP32 reads
+texture<float2, 1, cudaReadModeElementType> tex1dfloat2;
 texture<float2, 2, cudaReadModeElementType> tex2dfloat2;
 #else
 // texture declaration for 8-bit fixed point reads
+texture<char2, 1, cudaReadModeNormalizedFloat> tex1dfloat2;
 texture<char2, 2, cudaReadModeNormalizedFloat> tex2dfloat2;
 #endif
 
@@ -160,12 +162,31 @@ CUBE_DEVICE(void, write2x2, unsigned int &Col, unsigned int &Row, float4 *matrix
 
 }
 
+// Define TEXTURE_DIM as 1 to use 1D texture (more accurate, costs 1 mult per LOAD)
+// Define TEXTURE_DIM as 2 to use 2D texture (less accurate, saves 1 mult per LOAD)
+#ifndef TEXTURE_DIM
+#define TEXTURE_DIM 1
+#endif
+
+#if TEXTURE_DIM == 1
+// Read in column in first warp as float2, row in second warp (still true for 1D?)
+#define LOAD(s, t)							\
+  {float2 temp = tex1Dfetch(tex1dfloat2, array_index + (t)*NFREQUENCY*Nstation*NPOL);			\
+    CUBE_ADD_BYTES(sizeof(ComplexInput));				\
+    *(input##s##_p) = temp.x;						\
+    *(input##s##_p + 4*TILE_WIDTH) = temp.y;}
+
+#elif TEXTURE_DIM == 2
 // Read in column in first warp as float2, row in second warp
 #define LOAD(s, t)							\
   {float2 temp = tex2D(tex2dfloat2, array_index, t);			\
     CUBE_ADD_BYTES(sizeof(ComplexInput));				\
     *(input##s##_p) = temp.x;						\
     *(input##s##_p + 4*TILE_WIDTH) = temp.y;}
+
+#else
+#error TEXTURE_DIM must be 1 or 2
+#endif
 
 // read in shared data as individual floats to avoid bank conflicts
 
@@ -496,8 +517,12 @@ void cudaXengine(Complex *matrix_h, ComplexInput *array_h) {
     array_load = array_d[p%2];
 
     // Kernel Calculation
+#if TEXTURE_DIM == 2
     cudaBindTexture2D(0, tex2dfloat2, array_compute, channelDesc, NFREQUENCY*Nstation*NPOL, NTIME_PIPE, 
 		      NFREQUENCY*Nstation*NPOL*sizeof(ComplexInput));
+#else
+    cudaBindTexture(0, tex1dfloat2, array_compute, channelDesc, NFREQUENCY*Nstation*NPOL*NTIME_PIPE*sizeof(ComplexInput));
+#endif
     cudaStreamWaitEvent(streams[1], copyCompletion[(p+1)%2], 0); // only start the kernel once the h2d transfer is complete
     CUBE_ASYNC_KERNEL_CALL(shared2x2float2, dimGrid, dimBlock, 0, streams[1], 
 			   (float4*)matrix_real_d, (float4*)matrix_imag_d, Nstation, writeMatrix);
@@ -516,8 +541,12 @@ void cudaXengine(Complex *matrix_h, ComplexInput *array_h) {
 
   array_compute = array_d[(PIPE_LENGTH+1)%2];
   // Final kernel calculation
+#if TEXTURE_DIM == 2
   cudaBindTexture2D(0, tex2dfloat2, array_compute, channelDesc, NFREQUENCY*Nstation*NPOL, NTIME_PIPE, 
 		    NFREQUENCY*Nstation*NPOL*sizeof(ComplexInput));
+#else
+    cudaBindTexture(0, tex1dfloat2, array_compute, channelDesc, NFREQUENCY*Nstation*NPOL*NTIME_PIPE*sizeof(ComplexInput));
+#endif
   cudaStreamWaitEvent(streams[1], copyCompletion[1], 0);
   CUBE_ASYNC_KERNEL_CALL(shared2x2float2, dimGrid, dimBlock, 0, streams[1], (float4*)matrix_real_d, (float4*)matrix_imag_d,
 			 Nstation, writeMatrix);
