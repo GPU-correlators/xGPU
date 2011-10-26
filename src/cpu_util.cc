@@ -91,7 +91,11 @@ void reorderMatrix(Complex *matrix) {
 // verbsoe=1 means print each differing basline/channel.
 // verbose=2 and array_h!=0 means print each differing baseline and each input
 //           sample that contributed to it.
-#define TOL 1e-1
+#ifndef FIXED_POINT
+#define TOL 1e-12
+#else
+#define TOL 1e-5
+#endif // FIXED_POINT
 void checkResult(Complex *gpu, Complex *cpu, int verbose=0, ComplexInput *array_h=0) {
 
   printf("Checking result...\n"); fflush(stdout);
