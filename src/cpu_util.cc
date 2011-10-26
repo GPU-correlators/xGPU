@@ -96,7 +96,9 @@ void checkResult(Complex *gpu, Complex *cpu, int verbose=0, ComplexInput *array_
 
   printf("Checking result...\n"); fflush(stdout);
 
-  int error=0;
+  int errorCount=0;
+  double error = 0.0;
+  double maxError = 0.0;
 
   for(int f=0; f<NFREQUENCY; f++){
     for(int i=0; i<NSTATION; i++){
@@ -105,8 +107,15 @@ void checkResult(Complex *gpu, Complex *cpu, int verbose=0, ComplexInput *array_
         for (int pol1=0; pol1<NPOL; pol1++) {
 	  for (int pol2=0; pol2<NPOL; pol2++) {
 	    int index = (k*NPOL+pol1)*NPOL+pol2;
-	    if((abs(cpu[index]) == 0 && abs(gpu[index]) > TOL)
-	    || (abs(cpu[index] - gpu[index]) / abs(cpu[index]) > TOL)) {
+	    if(abs(cpu[index]) == 0) {
+	      error = abs(gpu[index]);
+	    } else {
+	      error = abs(cpu[index] - gpu[index]) / abs(cpu[index]);
+	    }
+	    if(error > maxError) {
+	      maxError = error;
+	    }
+	    if(error > TOL) {
               if(verbose > 0) {
                 printf("%d %d %d %d %d %d %d %g  %g  %g  %g (%g %g)\n", f, i, j, k, pol1, pol2, index,
                        real(cpu[index]), real(gpu[index]), imag(cpu[index]), imag(gpu[index]), abs(cpu[index]), abs(gpu[index]));
@@ -125,7 +134,7 @@ void checkResult(Complex *gpu, Complex *cpu, int verbose=0, ComplexInput *array_
                   printf("                              (%6g, %6g)\n", real(sum), imag(sum));
                 }
               }
-	      error++;
+	      errorCount++;
 	    }
 	  }
 	}
@@ -133,10 +142,10 @@ void checkResult(Complex *gpu, Complex *cpu, int verbose=0, ComplexInput *array_
     }
   }
 
-  if (error) {
-    printf("Outer product summation failed with %d deviations\n\n", error);    
+  if (errorCount) {
+    printf("Outer product summation failed with %d deviations (max error %g)\n\n", errorCount, maxError);
   } else {
-    printf("Outer product summation successful\n\n");
+    printf("Outer product summation successful (max error %g)\n\n", maxError);
   }
 
 }
