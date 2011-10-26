@@ -6,9 +6,19 @@ void random_complex(ComplexInput* random_num, int length) {
     b = ((rand()-RAND_MAX/2) / (float)(RAND_MAX/2));
 #ifndef FIXED_POINT
     random_num[i] = ComplexInput(a,b);
+    // Simulate 4 bit data that has been converted to floats
+    // (i.e. {-7.0, -6.0, ..., +6.0, +7.0})
+    random_num[i] = ComplexInput( (int)(8*a), (int)(8*b) );
 #else
-    //random_num[i] = ComplexInput(127*a,127*b);
-    random_num[i] = ComplexInput(-128,127*b);
+    // Simulate 4 bit data that has been multipled by 16 (via left shift by 4;
+    // could multiply by 18 to maximize range, but that might be more expensive
+    // than left shift by 4).
+    // (i.e. {-240, -224, -208, ..., +208, +224, +240})
+    random_num[i] = ComplexInput( (((int)(8*a)) << 4), (((int)(8*b)) << 4) );
+
+    // Uncomment next line to simulate all zeros for every input.
+    // Interestingly, it does not give exactly zeros on the output.
+    //random_num[i] = ComplexInput(0,0);
 #endif
   }
 }
