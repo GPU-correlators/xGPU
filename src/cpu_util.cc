@@ -100,12 +100,12 @@ void checkResult(Complex *gpu, Complex *cpu, int verbose=0, ComplexInput *array_
   double error = 0.0;
   double maxError = 0.0;
 
-  for(int f=0; f<NFREQUENCY; f++){
-    for(int i=0; i<NSTATION; i++){
-      for (int j=0; j<=i; j++) {
-	int k = f*(NSTATION+1)*(NSTATION/2) + i*(i+1)/2 + j;
-        for (int pol1=0; pol1<NPOL; pol1++) {
-	  for (int pol2=0; pol2<NPOL; pol2++) {
+  for(int i=0; i<NSTATION; i++){
+    for (int j=0; j<=i; j++) {
+      for (int pol1=0; pol1<NPOL; pol1++) {
+	for (int pol2=0; pol2<NPOL; pol2++) {
+	  for(int f=0; f<NFREQUENCY; f++){
+	    int k = f*(NSTATION+1)*(NSTATION/2) + i*(i+1)/2 + j;
 	    int index = (k*NPOL+pol1)*NPOL+pol2;
 	    if(abs(cpu[index]) == 0) {
 	      error = abs(gpu[index]);
