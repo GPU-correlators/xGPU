@@ -126,12 +126,12 @@ void checkResult(Complex *gpu, Complex *cpu, int verbose=0, ComplexInput *array_
                     ComplexInput in1 = array_h[t*NFREQUENCY*NSTATION*2 + f*NSTATION*2 + j*2 + pol2];
                     Complex prod = convert(in0) * conj(convert(in1));
                     sum += prod;
-                    printf(" %d (%4g,%4g) (%4g,%4g) -> (%6g, %6g)\n", t,
+                    printf(" %4d (%4g,%4g) (%4g,%4g) -> (%6g, %6g)\n", t,
                         (float)real(in0), (float)imag(in0),
                         (float)real(in1), (float)imag(in1),
                         (float)real(prod), (float)imag(prod));
                   }
-                  printf("                              (%6g, %6g)\n", real(sum), imag(sum));
+                  printf("                                 (%6g, %6g)\n", real(sum), imag(sum));
                 }
               }
 	      errorCount++;
