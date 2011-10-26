@@ -51,7 +51,7 @@ typedef std::complex<char> ComplexInput;
 //#define PIPE_LENGTH 1
 //#define NTIME_PIPE NTIME / PIPE_LENGTH
 
-#define NTIME_PIPE 4
+#define NTIME_PIPE 100
 #define PIPE_LENGTH NTIME / NTIME_PIPE
 
 // how many pulsars are we binning for (Not implemented yet)
