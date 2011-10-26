@@ -40,11 +40,11 @@ typedef std::complex<char> ComplexInput;
 #define GBYTE (1024llu*1024llu*1024llu)
 
 #define NPOL 2
-#define NSTATION 1286ll
+#define NSTATION 256ll
 #define SIGNAL_SIZE GBYTE
 #define SAMPLES SIGNAL_SIZE / (NSTATION*NPOL*sizeof(ComplexInput))
 #define NFREQUENCY 10ll
-#define NTIME 20ll //SAMPLES / NFREQUENCY
+#define NTIME 1000ll //SAMPLES / NFREQUENCY
 #define NBASELINE ((NSTATION+1)*(NSTATION/2))
 #define NDIM 2
 
