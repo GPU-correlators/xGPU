@@ -417,9 +417,9 @@ void xInit(ComplexInput **array_h, Complex **matrix_h, int Nstat) {
   checkCudaError();
   
   //clear out any previous values
-  cudaMemset(array_d[0], '0', vecLengthPipe*sizeof(ComplexInput));
-  cudaMemset(array_d[1], '0', vecLengthPipe*sizeof(ComplexInput));
-  cudaMemset(matrix_d, '0', matLength*sizeof(Complex));
+  cudaMemset(array_d[0], '\0', vecLengthPipe*sizeof(ComplexInput));
+  cudaMemset(array_d[1], '\0', vecLengthPipe*sizeof(ComplexInput));
+  cudaMemset(matrix_d, '\0', matLength*sizeof(Complex));
   checkCudaError();
 
   // set the pointer to the real and imaginary components of the matrix
