@@ -3,7 +3,7 @@
 // Normally distributed random numbers with standard deviation of 2.5,
 // quantized to integer values and saturated to the range -7.0 to +7.0.  For
 // the fixed point case, the values are then converted to ints, scaled by 16
-// (i.e. -240 to +240), and finally stored as signed chars.
+// (i.e. -112 to +112), and finally stored as signed chars.
 void random_complex(ComplexInput* random_num, int length) {
   double u1,u2,r,theta,a,b;
   double stddev=2.5;
@@ -33,7 +33,7 @@ void random_complex(ComplexInput* random_num, int length) {
     // Simulate 4 bit data that has been multipled by 16 (via left shift by 4;
     // could multiply by 18 to maximize range, but that might be more expensive
     // than left shift by 4).
-    // (i.e. {-240, -224, -208, ..., +208, +224, +240})
+    // (i.e. {-112, -96, -80, ..., +80, +96, +112})
     random_num[i] = ComplexInput( ((int)a) << 4, ((int)b) << 4 );
 
     // Uncomment next line to simulate all zeros for every input.
