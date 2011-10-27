@@ -118,7 +118,7 @@ void reorderMatrix(Complex *matrix) {
 #endif // FIXED_POINT
 void checkResult(Complex *gpu, Complex *cpu, int verbose=0, ComplexInput *array_h=0) {
 
-  printf("Checking result...\n"); fflush(stdout);
+  printf("Checking result (tolerance == %g)...\n", TOL); fflush(stdout);
 
   int errorCount=0;
   double error = 0.0;
