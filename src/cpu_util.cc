@@ -1,20 +1,40 @@
-// random numbers in the range 
+#include <math.h>
+
+// Normally distributed random numbers with standard deviation of 2.5,
+// quantized to integer values and saturated to the range -7.0 to +7.0.  For
+// the fixed point case, the values are then converted to ints, scaled by 16
+// (i.e. -240 to +240), and finally stored as signed chars.
 void random_complex(ComplexInput* random_num, int length) {
-  float a,b;
+  double u1,u2,r,theta,a,b;
+  double stddev=2.5;
   for(int i=0; i<length; i++){
-    a = ((rand()-RAND_MAX/2) / (float)(RAND_MAX/2));
-    b = ((rand()-RAND_MAX/2) / (float)(RAND_MAX/2));
+    u1 = (rand() / (double)(RAND_MAX));
+    u2 = (rand() / (double)(RAND_MAX));
+    if(u1==0.0) u1=0.5/RAND_MAX;
+    if(u2==0.0) u2=0.5/RAND_MAX;
+    // Do Box-Muller transform
+    r = stddev * sqrt(-2.0*log(u1));
+    theta = 2*M_PI*u2;
+    a = r * cos(theta);
+    b = r * sin(theta);
+    // Quantize (TODO: unbiased rounding?)
+    a = round(a);
+    b = round(b);
+    // Saturate
+    if(a >  7.0) a =  7.0;
+    if(a < -7.0) a = -7.0;
+    if(b >  7.0) b =  7.0;
+    if(b < -7.0) b = -7.0;
 #ifndef FIXED_POINT
-    random_num[i] = ComplexInput(a,b);
     // Simulate 4 bit data that has been converted to floats
     // (i.e. {-7.0, -6.0, ..., +6.0, +7.0})
-    random_num[i] = ComplexInput( (int)(8*a), (int)(8*b) );
+    random_num[i] = ComplexInput( a, b );
 #else
     // Simulate 4 bit data that has been multipled by 16 (via left shift by 4;
     // could multiply by 18 to maximize range, but that might be more expensive
     // than left shift by 4).
     // (i.e. {-240, -224, -208, ..., +208, +224, +240})
-    random_num[i] = ComplexInput( (((int)(8*a)) << 4), (((int)(8*b)) << 4) );
+    random_num[i] = ComplexInput( ((int)a) << 4, ((int)b) << 4 );
 
     // Uncomment next line to simulate all zeros for every input.
     // Interestingly, it does not give exactly zeros on the output.
