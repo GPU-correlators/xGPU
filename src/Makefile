@@ -22,20 +22,20 @@ endif
 
 all: cuda_correlator
 
-cuda_correlator: cuda_correlator.cu $(LIB) cuda_xengine.cu omp_xengine.cc cpu_util.cc
+cuda_correlator: cuda_correlator.cu cuda_xengine.cu omp_xengine.cc cpu_util.cc
 	$(NVCC) $(NVCCFLAGS) cuda_correlator.cu cube/cube.c -o cuda_correlator $(LFLAGS)
 
-count_cuda_correlator: cuda_correlator.cu $(LIB) cuda_xengine.cu omp_xengine.cc cpu_util.cc
+count_cuda_correlator: cuda_correlator.cu cuda_xengine.cu omp_xengine.cc cpu_util.cc
 	$(NVCC) $(NVCCFLAGS) cuda_correlator.cu cube/cube.c -DCUBE_COUNT_MODE -o cuda_correlator $(LFLAGS)  
 
 # FIXME? The test seems to fail on the timing run - why is this? - summation is doubled for some reason
-time_cuda_correlator: cuda_correlator.cu $(LIB) cuda_xengine.cu omp_xengine.cc cpu_util.cc
+time_cuda_correlator: cuda_correlator.cu cuda_xengine.cu omp_xengine.cc cpu_util.cc
 	$(NVCC) $(NVCCFLAGS) cuda_correlator.cu cube/cube.c -DCUBE_TIME_MODE -o cuda_correlator $(LFLAGS) 
 
-async_count_cuda_correlator: cuda_correlator.cu $(LIB) cuda_xengine.cu omp_xengine.cc cpu_util.cc
+async_count_cuda_correlator: cuda_correlator.cu cuda_xengine.cu omp_xengine.cc cpu_util.cc
 	$(NVCC) $(NVCCFLAGS) cuda_correlator.cu cube/cube.c -DCUBE_ASYNC_COUNT_MODE -o cuda_correlator $(LFLAGS) 
 
-async_time_cuda_correlator: cuda_correlator.cu $(LIB) cuda_xengine.cu omp_xengine.cc cpu_util.cc
+async_time_cuda_correlator: cuda_correlator.cu cuda_xengine.cu omp_xengine.cc cpu_util.cc
 	$(NVCC) $(NVCCFLAGS) cuda_correlator.cu cube/cube.c -DCUBE_ASYNC_TIME_MODE -o cuda_correlator $(LFLAGS) 
 
 tags:
