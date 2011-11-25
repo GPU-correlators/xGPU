@@ -1,4 +1,9 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <math.h>
+
+#include "cuda_xengine.h" // For Complex and CompexInput typedefs
 
 // Normally distributed random numbers with standard deviation of 2.5,
 // quantized to integer values and saturated to the range -7.0 to +7.0.  For

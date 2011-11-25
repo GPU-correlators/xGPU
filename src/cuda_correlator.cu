@@ -1,10 +1,12 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <assert.h>
 #include <math.h>
 #include <complex>
 #include <limits.h>
-#include <omp.h>
+
+#include "cuda_xengine.h"
+#include "omp_xengine.h"
+#include "cpu_util.h"
 
 /*
   Data ordering for input vectors is (running from slowest to fastest)
@@ -16,21 +18,6 @@
 
 #define USE_GPU
 
-// uncomment to use 8-bit fixed point, comment out for 32-bit floating point
-
-#define FIXED_POINT
-
-// set the data type accordingly
-#ifndef FIXED_POINT
-typedef std::complex<float> ComplexInput;
-#define COMPLEX_INPUT float2
-#define SCALE 1.0f // no rescale required for FP32
-#else
-typedef std::complex<char> ComplexInput;
-#define COMPLEX_INPUT char2 
-#define SCALE 16129.0f // need to rescale result 
-#endif
-
 #define TRIANGULAR_ORDER 1000
 #define REAL_IMAG_TRIANGULAR_ORDER 2000
 #define REGISTER_TILE_TRIANGULAR_ORDER 3000
@@ -39,42 +26,9 @@ typedef std::complex<char> ComplexInput;
 // size = freq * time * station * pol *sizeof(ComplexInput)
 #define GBYTE (1024llu*1024llu*1024llu)
 
-#define NPOL 2
-#define NSTATION 256ll
 #define SIGNAL_SIZE GBYTE
 #define SAMPLES SIGNAL_SIZE / (NSTATION*NPOL*sizeof(ComplexInput))
-#define NFREQUENCY 10ll
-#define NTIME 1000ll //SAMPLES / NFREQUENCY
-#define NBASELINE ((NSTATION+1)*(NSTATION/2))
 #define NDIM 2
-
-//#define PIPE_LENGTH 1
-//#define NTIME_PIPE NTIME / PIPE_LENGTH
-
-#define NTIME_PIPE 100
-#define PIPE_LENGTH NTIME / NTIME_PIPE
-
-// how many pulsars are we binning for (Not implemented yet)
-#define NPULSAR 0
-
-// whether we are writing the matrix back to device memory (used for benchmarking)
-int writeMatrix = 1;
-// this must be enabled for this option to work though, slightly hurts performance
-//#define WRITE_OPTION 
-
-typedef std::complex<float> Complex;
-
-Complex convert(const ComplexInput &b) {
-  return Complex(real(b), imag(b));
-}
-
-// the OpenMP Xengine
-#include "omp_xengine.cc"
-
-// the GPU Xengine
-#include "cuda_xengine.cu"
-
-#include "cpu_util.cc"
 
 int main(int argc, char** argv) {
 

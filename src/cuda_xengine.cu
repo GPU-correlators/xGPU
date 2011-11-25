@@ -12,7 +12,17 @@
 
  */
 
-#include <cube/cube.h>
+#include <stdio.h>
+
+#include "cuda_xengine.h"
+#include "cube/cube.h"
+
+#define PIPE_LENGTH NTIME / NTIME_PIPE
+
+// whether we are writing the matrix back to device memory (used for benchmarking)
+int writeMatrix = 1;
+// this must be enabled for this option to work though, slightly hurts performance
+//#define WRITE_OPTION 
 
 //int Nfrequency; //this needs to be compile time now with constant memory array
 int Nstation;

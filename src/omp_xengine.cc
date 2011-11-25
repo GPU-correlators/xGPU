@@ -12,6 +12,10 @@
 
 */
 
+#include <omp.h>
+
+#include "omp_xengine.h"
+
 void ompXengine(Complex *matrix_h, ComplexInput *array_h) {
   int num_procs = omp_get_num_procs();
   #pragma omp parallel num_threads(num_procs)
