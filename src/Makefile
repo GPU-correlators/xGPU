@@ -43,6 +43,10 @@ OBJS += omp_xengine.o
 OBJS += cpu_util.o
 OBJS += cube/cube.o
 
+# Each object file has a corresponding dependency file
+DEPS = $(OBJS:.o=.d)
+-include #(DEPS)
+
 all: cuda_correlator
 
 cuda_correlator: $(OBJS)
@@ -51,28 +55,34 @@ cuda_correlator: $(OBJS)
 # A target to make all object files, but not link them
 objs: $(OBJS)
 
-#cuda_correlator_old: cuda_correlator.cu cuda_xengine.cu omp_xengine.cc cpu_util.cc
-#	$(NVCC) $(NVCCFLAGS) cuda_correlator.cu cube/cube.c -o cuda_correlator $(LFLAGS)
+# These .{c,cc,cu} -> .o rules will generate dependency files as a side effect
+# of the compilation.  These files are included elsewhere in this Makefile.
 #
-#count_cuda_correlator: cuda_correlator.cu cuda_xengine.cu omp_xengine.cc cpu_util.cc
-#	$(NVCC) $(NVCCFLAGS) cuda_correlator.cu cube/cube.c -DCUBE_COUNT_MODE -o cuda_correlator $(LFLAGS)  
-#
-#time_cuda_correlator: cuda_correlator.cu cuda_xengine.cu omp_xengine.cc cpu_util.cc
-#	$(NVCC) $(NVCCFLAGS) cuda_correlator.cu cube/cube.c -DCUBE_TIME_MODE -o cuda_correlator $(LFLAGS) 
-#
-#async_count_cuda_correlator: cuda_correlator.cu cuda_xengine.cu omp_xengine.cc cpu_util.cc
-#	$(NVCC) $(NVCCFLAGS) cuda_correlator.cu cube/cube.c -DCUBE_ASYNC_COUNT_MODE -o cuda_correlator $(LFLAGS) 
-#
-#async_time_cuda_correlator: cuda_correlator.cu cuda_xengine.cu omp_xengine.cc cpu_util.cc
-#	$(NVCC) $(NVCCFLAGS) cuda_correlator.cu cube/cube.c -DCUBE_ASYNC_TIME_MODE -o cuda_correlator $(LFLAGS) 
+# NB Include dep files using "-include", see
+#    http://make.paulandlesley.org/autodep.html#traditional for more info.
 
 %.o: %.c
+	@$(NVCC) $(NVCCFLAGS) -M -o $*.P $< && \
+	cp $*.P $*.d && \
+	sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
+		  -e '/^$$/ d' -e 's/$$/ :/' < $*.P >> $*.d && \
+	rm -f $*.P
 	$(NVCC) $(NVCCFLAGS) -c -o $@ $<
 
 %.o: %.cc
+	@$(NVCC) $(NVCCFLAGS) -M -o $*.P $< && \
+	cp $*.P $*.d && \
+	sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
+		  -e '/^$$/ d' -e 's/$$/ :/' < $*.P >> $*.d && \
+	rm -f $*.P
 	$(NVCC) $(NVCCFLAGS) -c -o $@ $<
 
 %.o: %.cu
+	@$(NVCC) $(NVCCFLAGS) -M -o $*.P $< && \
+	cp $*.P $*.d && \
+	sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
+		  -e '/^$$/ d' -e 's/$$/ :/' < $*.P >> $*.d && \
+	rm -f $*.P
 	$(NVCC) $(NVCCFLAGS) -c -o $@ $<
 
 tags:
@@ -80,7 +90,8 @@ tags:
 
 clean:
 	rm -f ./cuda_correlator
-	rm -f ./*.o
-	rm -f ./cube/cube.o
+	rm -f $(OBJS)
+	rm -f $(DEPS)
+	rm -f tags
 
 .PHONY : all objs tags clean
