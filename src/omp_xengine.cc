@@ -12,9 +12,16 @@
 
 */
 
+#include <complex>
 #include <omp.h>
 
 #include "omp_xengine.h"
+
+typedef std::complex<float> cppComplex;
+
+inline cppComplex convert(const ComplexInput &b) {
+  return cppComplex(b.real, b.imag);
+}
 
 void ompXengine(Complex *matrix_h, ComplexInput *array_h) {
   int num_procs = omp_get_num_procs();
@@ -26,11 +33,11 @@ void ompXengine(Complex *matrix_h, ComplexInput *array_h) {
       int k = i - f*NBASELINE;
       int station1 = -0.5 + sqrt(0.25 + 2*k);
       int station2 = k - ((station1+1)*station1)/2;
-      Complex sumXX(0.0);
-      Complex sumXY(0.0);
-      Complex sumYX(0.0);
-      Complex sumYY(0.0);
-      Complex inputRowX, inputRowY, inputColX, inputColY;
+      cppComplex sumXX(0.0);
+      cppComplex sumXY(0.0);
+      cppComplex sumYX(0.0);
+      cppComplex sumYY(0.0);
+      cppComplex inputRowX, inputRowY, inputColX, inputColY;
       for(int t=0; t<NTIME; t++){
 	inputRowX = convert(array_h[((t*NFREQUENCY + f)*NSTATION + station1)*NPOL]);
 	inputRowY = convert(array_h[((t*NFREQUENCY + f)*NSTATION + station1)*NPOL + 1]);
@@ -42,10 +49,14 @@ void ompXengine(Complex *matrix_h, ComplexInput *array_h) {
 	sumYY += inputRowY * conj(inputColY);
       }
     
-      matrix_h[4*i] = sumXX;
-      matrix_h[4*i + 1] = sumXY;
-      matrix_h[4*i + 2] = sumYX;
-      matrix_h[4*i + 3] = sumYY;
+      matrix_h[4*i    ].real = real(sumXX);
+      matrix_h[4*i + 1].real = real(sumXY);
+      matrix_h[4*i + 2].real = real(sumYX);
+      matrix_h[4*i + 3].real = real(sumYY);
+      matrix_h[4*i    ].imag = imag(sumXX);
+      matrix_h[4*i + 1].imag = imag(sumXY);
+      matrix_h[4*i + 2].imag = imag(sumYX);
+      matrix_h[4*i + 3].imag = imag(sumYY);
       // fprintf(stdout,"OUTER:%f %f\n",crealf(matrix_h[4*i]), cimag(matrix_h[4*i]));
     } //end parallel for loop
   }  //end parallel segment
