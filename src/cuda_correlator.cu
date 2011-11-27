@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <assert.h>
 #include <math.h>
-#include <complex>
 #include <limits.h>
 
 #include "cuda_xengine.h"

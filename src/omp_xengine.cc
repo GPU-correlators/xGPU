@@ -12,16 +12,16 @@
 
 */
 
-#include <complex>
+#include <math.h>
 #include <omp.h>
 
 #include "omp_xengine.h"
 
-typedef std::complex<float> cppComplex;
-
-inline cppComplex convert(const ComplexInput &b) {
-  return cppComplex(b.real, b.imag);
-}
+#define cxmac(acc,z0,z1)                                                         \
+do {                                                                             \
+  acc.real += (float)z0.real * (float)z1.real + (float)z0.imag * (float)z1.imag; \
+  acc.imag += (float)z0.imag * (float)z1.real - (float)z0.real * (float)z1.imag; \
+} while (0)
 
 void ompXengine(Complex *matrix_h, ComplexInput *array_h) {
   int num_procs = omp_get_num_procs();
@@ -33,30 +33,26 @@ void ompXengine(Complex *matrix_h, ComplexInput *array_h) {
       int k = i - f*NBASELINE;
       int station1 = -0.5 + sqrt(0.25 + 2*k);
       int station2 = k - ((station1+1)*station1)/2;
-      cppComplex sumXX(0.0);
-      cppComplex sumXY(0.0);
-      cppComplex sumYX(0.0);
-      cppComplex sumYY(0.0);
-      cppComplex inputRowX, inputRowY, inputColX, inputColY;
+      Complex sumXX; sumXX.real = 0.0; sumXX.imag = 0.0;
+      Complex sumXY; sumXY.real = 0.0; sumXY.imag = 0.0;
+      Complex sumYX; sumYX.real = 0.0; sumYX.imag = 0.0;
+      Complex sumYY; sumYY.real = 0.0; sumYY.imag = 0.0;
+      ComplexInput inputRowX, inputRowY, inputColX, inputColY;
       for(int t=0; t<NTIME; t++){
-	inputRowX = convert(array_h[((t*NFREQUENCY + f)*NSTATION + station1)*NPOL]);
-	inputRowY = convert(array_h[((t*NFREQUENCY + f)*NSTATION + station1)*NPOL + 1]);
-	inputColX = convert(array_h[((t*NFREQUENCY + f)*NSTATION + station2)*NPOL]);
-	inputColY = convert(array_h[((t*NFREQUENCY + f)*NSTATION + station2)*NPOL + 1]);
-	sumXX += inputRowX * conj(inputColX);
-	sumXY += inputRowX * conj(inputColY);
-	sumYX += inputRowY * conj(inputColX);
-	sumYY += inputRowY * conj(inputColY);
+	inputRowX = array_h[((t*NFREQUENCY + f)*NSTATION + station1)*NPOL];
+	inputRowY = array_h[((t*NFREQUENCY + f)*NSTATION + station1)*NPOL + 1];
+	inputColX = array_h[((t*NFREQUENCY + f)*NSTATION + station2)*NPOL];
+	inputColY = array_h[((t*NFREQUENCY + f)*NSTATION + station2)*NPOL + 1];
+	cxmac(sumXX, inputRowX, inputColX);
+	cxmac(sumXY, inputRowX, inputColY);
+	cxmac(sumYX, inputRowY, inputColX);
+	cxmac(sumYY, inputRowY, inputColY);
       }
     
-      matrix_h[4*i    ].real = real(sumXX);
-      matrix_h[4*i + 1].real = real(sumXY);
-      matrix_h[4*i + 2].real = real(sumYX);
-      matrix_h[4*i + 3].real = real(sumYY);
-      matrix_h[4*i    ].imag = imag(sumXX);
-      matrix_h[4*i + 1].imag = imag(sumXY);
-      matrix_h[4*i + 2].imag = imag(sumYX);
-      matrix_h[4*i + 3].imag = imag(sumYY);
+      matrix_h[4*i    ] = sumXX;
+      matrix_h[4*i + 1] = sumXY;
+      matrix_h[4*i + 2] = sumYX;
+      matrix_h[4*i + 3] = sumYY;
       // fprintf(stdout,"OUTER:%f %f\n",crealf(matrix_h[4*i]), cimag(matrix_h[4*i]));
     } //end parallel for loop
   }  //end parallel segment
