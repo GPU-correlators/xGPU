@@ -172,7 +172,7 @@ void checkResult(Complex *gpu, Complex *cpu, int verbose=0, ComplexInput *array_
                     //Complex prod = convert(in0) * conj(convert(in1));
                     Complex prod;
                     prod.real = in0.real * in1.real + in0.imag * in1.imag;
-                    prod.imag = in0.real * in1.imag + in0.imag * in1.real;
+                    prod.imag = in0.imag * in1.real - in0.real * in1.imag;
 
                     sum.real += prod.real;
                     sum.imag += prod.imag;
