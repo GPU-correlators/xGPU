@@ -27,8 +27,9 @@ void ompXengine(Complex *matrix_h, ComplexInput *array_h) {
   int num_procs = omp_get_num_procs();
   #pragma omp parallel num_threads(num_procs)
   {
+    int i, t;
     #pragma omp for schedule(dynamic)
-    for(int i=0; i<NFREQUENCY*NBASELINE; i++){
+    for(i=0; i<NFREQUENCY*NBASELINE; i++){
       int f = i/NBASELINE;
       int k = i - f*NBASELINE;
       int station1 = -0.5 + sqrt(0.25 + 2*k);
@@ -38,7 +39,7 @@ void ompXengine(Complex *matrix_h, ComplexInput *array_h) {
       Complex sumYX; sumYX.real = 0.0; sumYX.imag = 0.0;
       Complex sumYY; sumYY.real = 0.0; sumYY.imag = 0.0;
       ComplexInput inputRowX, inputRowY, inputColX, inputColY;
-      for(int t=0; t<NTIME; t++){
+      for(t=0; t<NTIME; t++){
 	inputRowX = array_h[((t*NFREQUENCY + f)*NSTATION + station1)*NPOL];
 	inputRowY = array_h[((t*NFREQUENCY + f)*NSTATION + station1)*NPOL + 1];
 	inputColX = array_h[((t*NFREQUENCY + f)*NSTATION + station2)*NPOL];
