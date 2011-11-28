@@ -45,7 +45,6 @@ OBJS += cube/cube.o
 
 # Each object file has a corresponding dependency file
 DEPS = $(OBJS:.o=.d)
--include #(DEPS)
 
 all: cuda_correlator
 
@@ -54,6 +53,10 @@ cuda_correlator: $(OBJS)
 
 # A target to make all object files, but not link them
 objs: $(OBJS)
+
+# Include dependencies after explicit rules (really anywhere after first
+# explicit rule) so that they do not provide default target.
+-include $(DEPS)
 
 # These .{c,cc,cu} -> .o rules will generate dependency files as a side effect
 # of the compilation.  These files are included elsewhere in this Makefile.
