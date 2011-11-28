@@ -10,9 +10,10 @@
 // the fixed point case, the values are then converted to ints, scaled by 16
 // (i.e. -112 to +112), and finally stored as signed chars.
 void random_complex(ComplexInput* random_num, int length) {
+  int i;
   double u1,u2,r,theta,a,b;
   double stddev=2.5;
-  for(int i=0; i<length; i++){
+  for(i=0; i<length; i++){
     u1 = (rand() / (double)(RAND_MAX));
     u2 = (rand() / (double)(RAND_MAX));
     if(u1==0.0) u1=0.5/RAND_MAX;
@@ -57,19 +58,20 @@ void reorderMatrix(Complex *matrix) {
 #if MATRIX_ORDER == REGISTER_TILE_TRIANGULAR_ORDER
   // reorder the matrix from REGISTER_TILE_TRIANGULAR_ORDER to TRIANGULAR_ORDER
 
+  int f, i, rx, j, ry, pol1, pol2;
   size_t matLength = NFREQUENCY * ((NSTATION/2+1)*(NSTATION/4)*NPOL*NPOL*4) * (NPULSAR + 1);
-  Complex *tmp = new Complex[matLength];
+  Complex *tmp = malloc(matLength * sizeof(Complex));
   memset(tmp, '0', matLength);
 
-  for(int f=0; f<NFREQUENCY; f++) {
-    for(int i=0; i<NSTATION/2; i++) {
-      for (int rx=0; rx<2; rx++) {
-	for (int j=0; j<=i; j++) {
-	  for (int ry=0; ry<2; ry++) {
+  for(f=0; f<NFREQUENCY; f++) {
+    for(i=0; i<NSTATION/2; i++) {
+      for (rx=0; rx<2; rx++) {
+	for (j=0; j<=i; j++) {
+	  for (ry=0; ry<2; ry++) {
 	    int k = f*(NSTATION+1)*(NSTATION/2) + (2*i+rx)*(2*i+rx+1)/2 + 2*j+ry;
 	    int l = f*4*(NSTATION/2+1)*(NSTATION/4) + (2*ry+rx)*(NSTATION/2+1)*(NSTATION/4) + i*(i+1)/2 + j;
-	    for (int pol1=0; pol1<NPOL; pol1++) {
-	      for (int pol2=0; pol2<NPOL; pol2++) {
+	    for (pol1=0; pol1<NPOL; pol1++) {
+	      for (pol2=0; pol2<NPOL; pol2++) {
 		size_t tri_index = (k*NPOL+pol1)*NPOL+pol2;
 		size_t reg_index = (l*NPOL+pol1)*NPOL+pol2;
 		//tmp[tri_index] = 
@@ -88,20 +90,21 @@ void reorderMatrix(Complex *matrix) {
    
   memcpy(matrix, tmp, matLength*sizeof(Complex));
 
-  delete []tmp;
+  free(tmp);
 
 #elif MATRIX_ORDER == REAL_IMAG_TRIANGULAR_ORDER
   // reorder the matrix from REAL_IMAG_TRIANGULAR_ORDER to TRIANGULAR_ORDER
   
+  int f, i, j, pol1, pol2;
   size_t matLength = NFREQUENCY * ((NSTATION+1)*(NSTATION/2)*NPOL*NPOL) * (NPULSAR + 1);
-  Complex *tmp = new Complex[matLength];
+  Complex *tmp = malloc(matLength * sizeof(Complex));
 
-  for(int f=0; f<NFREQUENCY; f++){
-    for(int i=0; i<NSTATION; i++){
-      for (int j=0; j<=i; j++) {
+  for(f=0; f<NFREQUENCY; f++){
+    for(i=0; i<NSTATION; i++){
+      for (j=0; j<=i; j++) {
 	int k = f*(NSTATION+1)*(NSTATION/2) + i*(i+1)/2 + j;
-        for (int pol1=0; pol1<NPOL; pol1++) {
-	  for (int pol2=0; pol2<NPOL; pol2++) {
+        for (pol1=0; pol1<NPOL; pol1++) {
+	  for (pol2=0; pol2<NPOL; pol2++) {
 	    size_t index = (k*NPOL+pol1)*NPOL+pol2;
 	    tmp[index].real = ((float*)matrix)[index];
 	    tmp[index].imag = ((float*)matrix)[index+matLength];
@@ -113,7 +116,7 @@ void reorderMatrix(Complex *matrix) {
 
   memcpy(matrix, tmp, matLength*sizeof(Complex));
 
-  delete []tmp;
+  free(tmp);
 #endif
 
   return;
@@ -132,19 +135,20 @@ void reorderMatrix(Complex *matrix) {
 #else
 #define TOL 1e-5
 #endif // FIXED_POINT
-void checkResult(Complex *gpu, Complex *cpu, int verbose=0, ComplexInput *array_h=0) {
+void checkResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *array_h) {
 
   printf("Checking result (tolerance == %g)...\n", TOL); fflush(stdout);
 
   int errorCount=0;
   double error = 0.0;
   double maxError = 0.0;
+  int i, j, pol1, pol2, f, t;
 
-  for(int i=0; i<NSTATION; i++){
-    for (int j=0; j<=i; j++) {
-      for (int pol1=0; pol1<NPOL; pol1++) {
-	for (int pol2=0; pol2<NPOL; pol2++) {
-	  for(int f=0; f<NFREQUENCY; f++){
+  for(i=0; i<NSTATION; i++){
+    for (j=0; j<=i; j++) {
+      for (pol1=0; pol1<NPOL; pol1++) {
+	for (pol2=0; pol2<NPOL; pol2++) {
+	  for(f=0; f<NFREQUENCY; f++){
 	    int k = f*(NSTATION+1)*(NSTATION/2) + i*(i+1)/2 + j;
 	    int index = (k*NPOL+pol1)*NPOL+pol2;
 	    if(zabs(cpu[index]) == 0) {
@@ -166,7 +170,7 @@ void checkResult(Complex *gpu, Complex *cpu, int verbose=0, ComplexInput *array_
                   Complex sum;
                   sum.real = 0;
                   sum.imag = 0;
-                  for(int t=0; t<NTIME; t++) {
+                  for(t=0; t<NTIME; t++) {
                     ComplexInput in0 = array_h[t*NFREQUENCY*NSTATION*2 + f*NSTATION*2 + i*2 + pol1];
                     ComplexInput in1 = array_h[t*NFREQUENCY*NSTATION*2 + f*NSTATION*2 + j*2 + pol2];
                     //Complex prod = convert(in0) * conj(convert(in1));
@@ -206,12 +210,13 @@ void checkResult(Complex *gpu, Complex *cpu, int verbose=0, ComplexInput *array_
 // Extracts the full matrix from the packed Hermitian form
 void extractMatrix(Complex *matrix, Complex *packed) {
 
-  for(int f=0; f<NFREQUENCY; f++){
-    for(int i=0; i<NSTATION; i++){
-      for (int j=0; j<=i; j++) {
+  int f, i, j, pol1, pol2;
+  for(f=0; f<NFREQUENCY; f++){
+    for(i=0; i<NSTATION; i++){
+      for (j=0; j<=i; j++) {
 	int k = f*(NSTATION+1)*(NSTATION/2) + i*(i+1)/2 + j;
-        for (int pol1=0; pol1<NPOL; pol1++) {
-	  for (int pol2=0; pol2<NPOL; pol2++) {
+        for (pol1=0; pol1<NPOL; pol1++) {
+	  for (pol2=0; pol2<NPOL; pol2++) {
 	    int index = (k*NPOL+pol1)*NPOL+pol2;
 	    matrix[(((f*NSTATION + i)*NSTATION + j)*NPOL + pol1)*NPOL+pol2].real = packed[index].real;
 	    matrix[(((f*NSTATION + i)*NSTATION + j)*NPOL + pol1)*NPOL+pol2].imag = packed[index].imag;
