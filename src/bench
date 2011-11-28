@@ -7,14 +7,23 @@
 make clean
 make cuda_correlator CUBE_COUNT_MODE=1 OSTYPE=$OSTYPE "$@"
 ./cuda_correlator
+
 make clean
 make cuda_correlator CUBE_TIME_MODE=1 OSTYPE=$OSTYPE "$@"
 ./cuda_correlator
+
 make clean
 make cuda_correlator CUBE_ASYNC_COUNT_MODE=1 OSTYPE=$OSTYPE "$@"
 ./cuda_correlator
+
 make clean
 make cuda_correlator CUBE_ASYNC_TIME_MODE=1 OSTYPE=$OSTYPE "$@"
 ./cuda_correlator
+
+# Rebuild a non-benchmarking version
+make clean
+make cuda_correlator OSTYPE=$OSTYPE "$@"
+
+# Display results
 more cube_benchmark.log
 more cube_async_benchmark.log
