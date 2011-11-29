@@ -38,10 +38,18 @@ typedef struct {
 
 // Functions in cuda_xengine.cu
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 void xInit(ComplexInput **array_h, Complex **matrix_h, int Nstat);
 
 void xFree(ComplexInput *array_h, Complex *matrix_h);
 
 void cudaXengine(Complex *matrix_h, ComplexInput *array_h);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // CUDA_XENGINE_H
