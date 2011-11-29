@@ -15,7 +15,7 @@
 #include <math.h>
 #include <omp.h>
 
-#include "omp_xengine.h"
+#include "xgpu.h"
 
 #define cxmac(acc,z0,z1)                                                         \
 do {                                                                             \

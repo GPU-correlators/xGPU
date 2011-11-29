@@ -14,7 +14,7 @@
 
 #include <stdio.h>
 
-#include "cuda_xengine.h"
+#include "xgpu.h"
 #include "cube/cube.h"
 
 #define PIPE_LENGTH NTIME / NTIME_PIPE

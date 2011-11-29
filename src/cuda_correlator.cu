@@ -3,9 +3,7 @@
 #include <math.h>
 #include <limits.h>
 
-#include "cuda_xengine.h"
-#include "omp_xengine.h"
-#include "cpu_util.h"
+#include "xgpu.h"
 
 /*
   Data ordering for input vectors is (running from slowest to fastest)
