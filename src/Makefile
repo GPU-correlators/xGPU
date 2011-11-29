@@ -2,15 +2,21 @@ CUDA_LIBDIR ?= /opt/cuda/lib64
 DEBUG ?= -O3
 TEXTURE_DIM ?= 1
 
+NVCC = nvcc
+
 ifeq ($(strip $(OSTYPE)),cygwin)
-NVCC = nvcc
-NVCCFLAGS = --compiler-bindir "c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin" -L"c:\Program Files\Microsoft SDKs\Windows\v7.1\Lib" -Xcompiler /openmp
+NVCCFLAGS = --compiler-bindir "c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin" -Xcompiler /openmp
+LFLAGS = -L"c:\Program Files\Microsoft SDKs\Windows\v7.1\Lib" -L.
+RPATH =
+LIBXGPU = libxgpu.dll
 else
-NVCC = nvcc
-NVCCFLAGS = -Xcompiler -fopenmp -Xcompiler -D_REENTRANT -L$(CUDA_LIBDIR)
+NVCCFLAGS = -Xcompiler -fopenmp -Xcompiler -D_REENTRANT
+LFLAGS = -L$(CUDA_LIBDIR) -L.
+RPATH = -Xlinker -rpath,'$${ORIGIN}'
+LIBXGPU = libxgpu.so
 endif
 
-NVCCFLAGS += $(DEBUG) -arch=sm_20 -Xptxas -abi=no -I. --ptxas-options=-v -prec-sqrt=false
+NVCCFLAGS += $(DEBUG) -arch=sm_20 -Xptxas -abi=no -I. --ptxas-options=-v -prec-sqrt=false -Xcompiler -fPIC
 NVCCFLAGS += -DTEXTURE_DIM=$(TEXTURE_DIM)
 
 #NVCCFLAGS += -Xptxas -dlcm=cg # disable L1 cache
@@ -38,21 +44,25 @@ NVCCFLAGS += -DPOWER_LOOP
 endif
 
 OBJS  = cuda_correlator.o
-OBJS += cuda_xengine.o
-OBJS += omp_xengine.o
-OBJS += cpu_util.o
-OBJS += cube/cube.o
+
+LIBXGPU_OBJS  = cuda_xengine.o
+LIBXGPU_OBJS += omp_xengine.o
+LIBXGPU_OBJS += cpu_util.o
+LIBXGPU_OBJS += cube/cube.o
 
 # Each object file has a corresponding dependency file
-DEPS = $(OBJS:.o=.d)
+DEPS = $(OBJS:.o=.d) $(LIBXGPU_OBJS:.o=.d)
 
 all: cuda_correlator
 
-cuda_correlator: $(OBJS)
-	$(NVCC) $(NVCCFLAGS) $^ -o $@ $(LFLAGS)
+cuda_correlator: $(OBJS) libxgpu.so
+	$(NVCC) $(NVCCFLAGS) $^ -o $@ $(LFLAGS) $(RPATH) -lxgpu
+
+$(LIBXGPU): $(LIBXGPU_OBJS)
+	$(NVCC) $(NVCCFLAGS) $^ -o $@ $(LFLAGS) --shared
 
 # A target to make all object files, but not link them
-objs: $(OBJS)
+objs: $(OBJS) $(LIBXGPU_OBJS)
 
 # Include dependencies after explicit rules (really anywhere after first
 # explicit rule) so that they do not provide default target.
@@ -92,8 +102,8 @@ tags:
 	ctags -R .
 
 clean:
-	rm -f ./cuda_correlator
-	rm -f $(OBJS)
+	rm -f ./cuda_correlator ./libxgpu.so
+	rm -f $(OBJS) $(LIBXGPU_OBJS)
 	rm -f $(DEPS)
 	rm -f tags
 
