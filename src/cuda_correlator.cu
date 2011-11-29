@@ -56,9 +56,12 @@ int main(int argc, char** argv) {
   int packedMatLength = NFREQUENCY * ((NSTATION+1)*(NSTATION/2)*NPOL*NPOL);
 
   // allocate the GPU X-engine memory
-  ComplexInput *array_h = 0; // this is pinned memory
-  Complex *cuda_matrix_h = 0;
-  xInit(&array_h, &cuda_matrix_h, NSTATION);
+  XGPUContext context;
+  context.array_h = NULL;
+  context.matrix_h = NULL;
+  xInit(&context);
+  ComplexInput *array_h = context.array_h; // this is pinned memory
+  Complex *cuda_matrix_h = context.matrix_h;
 
   // create an array of complex noise
   random_complex(array_h, vecLength);
@@ -70,7 +73,7 @@ int main(int argc, char** argv) {
 #endif
 
   printf("Calling GPU X-Engine\n");
-  cudaXengine(cuda_matrix_h, array_h);
+  cudaXengine(&context);
 
 #if (CUBE_MODE == CUBE_DEFAULT)
   
@@ -90,7 +93,7 @@ int main(int argc, char** argv) {
   free(omp_matrix_h);
 
   // free gpu memory
-  xFree(array_h, cuda_matrix_h);
+  xFree(&context);
 
   return 0;
 }

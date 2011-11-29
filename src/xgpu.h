@@ -30,23 +30,83 @@ typedef char ReImInput;
 #define SCALE 16129.0f // need to rescale result 
 #endif // FIXED_POINT
 
-typedef struct {
+typedef struct ComplexInputStruct {
   ReImInput real;
   ReImInput imag;
 } ComplexInput;
 
-typedef struct {
+typedef struct ComplexStruct {
   float real;
   float imag;
 } Complex;
 
+#define XGPU_INT8    (0)
+#define XGPU_FLOAT32 (1)
+#define XGPU_INT32   (2)
+
+// XGPUInfo is used to convey the compile-time X engine sizing
+// parameters of the XGPU library.  It should be allocated by the caller and
+// passed (via a pointer) to xInfo() which will fill in the fields.  Note that
+// the input values of these fields are currently ignored completely by xInfo()
+// (i.e. they are informational only).
+typedef struct XGPUInfoStruct {
+  // Number of polarizations (NB: will be rolled into a new "ninputs" field)
+  unsigned int npol;
+  // Number of stations (NB: will be rolled into a new "ninputs" field)
+  unsigned int nstation;
+  // Number of baselines (derived from nstation)
+  unsigned int nbaseline;
+  // Number of frequencies
+  unsigned int nfrequency;
+  // Number of per-channel time samples per integration
+  unsigned int ntime;
+  // Number of per-channel time samples per transfer to GPU
+  unsigned int ntimepipe;
+  // Type of input.  One of XGPU_INT8, XGPU_FLOAT32, XGPU_INT32.
+  unsigned int input_type;
+  // Number of ComplexInput elements in input vector
+  long long unsigned int vecLength;
+  // Number of ComplexInput elements per transfer to GPU
+  long long unsigned int vecLengthPipe;
+  // Number of Complex elements in output vector
+  long long unsigned int matLength;
+} XGPUInfo;
+
+typedef struct XGPUContextStruct {
+  // memory pointers on host
+  ComplexInput *array_h;
+  Complex *matrix_h;
+
+  // For internal use only
+  void *internal;
+} XGPUContext;
+
 // Functions in cuda_xengine.cu
 
-void xInit(ComplexInput **array_h, Complex **matrix_h, int Nstat);
+// Get compile-time sizing parameters.
+//
+// The XGPUInfo structure pointed to by pcxs is initalized with
+// compile-time sizing parameters.
+void xInfo(XGPUInfo *pcxs);
 
-void xFree(ComplexInput *array_h, Complex *matrix_h);
+// Initialize the XGPU.
+//
+// In addition to allocating device memory and initializing private internal
+// context, the host memory is either allocated via CudaMallocHost() or
+// registered with the CUDA runtime via CudaHostRegister().
+//
+// If context->array_h is zero, an array of ComplexInput elements is allocated
+// (of the appropriate size) via CudaMallocHost, otherwise pcontext->array_h is
+// passed to CudaHostRegister.
+//
+// If context->matrix_h is zero, an array of Complex elements is allocated (of
+// the appropriate size) via CudaMallocHost, otherwise context->matrix_h is
+// passed to CudaHostRegister.
+void xInit(XGPUContext *context);
 
-void cudaXengine(Complex *matrix_h, ComplexInput *array_h);
+void xFree(XGPUContext *context);
+
+void cudaXengine(XGPUContext *context);
 
 // Functions in cpu_util.cc
 
