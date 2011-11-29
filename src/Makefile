@@ -3,6 +3,9 @@ DEBUG ?= -O3
 TEXTURE_DIM ?= 1
 
 NVCC = nvcc
+prefix ?= /usr/local
+libdir ?= $(prefix)/lib
+includedir ?= $(prefix)/include
 
 ifeq ($(strip $(OSTYPE)),cygwin)
 NVCCFLAGS = --compiler-bindir "c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin" -Xcompiler /openmp
@@ -98,6 +101,16 @@ objs: $(OBJS) $(LIBXGPU_OBJS)
 	rm -f $*.P
 	$(NVCC) $(NVCCFLAGS) -c -o $@ $<
 
+install: $(LIBXGPU)
+	mkdir -p $(includedir)
+	cp xgpu.h $(includedir)
+	mkdir -p $(libdir)
+	cp $(LIBXGPU) $(libdir)
+
+uninstall:
+	rm -f $(includedir)/xgpu.h
+	rm -f $(libdir)/$(LIBXGPU)
+
 tags:
 	ctags -R .
 
@@ -107,4 +120,4 @@ clean:
 	rm -f $(DEPS)
 	rm -f tags
 
-.PHONY : all objs tags clean
+.PHONY : all objs tags clean install uninstall
