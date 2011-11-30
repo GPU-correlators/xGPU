@@ -25,7 +25,39 @@ to the Makefile, note that the kernels make Fermi-specific
 optimizations and so will likely lead to sub-standard performance on
 sm1.x CUDA architectures.
 
+Building the Library:
+
+The library and the sample program "cuda_correlator" can be built by changing
+into the src subdirectoy and running "make".
+
+$ cd src
+$ make
+
+Currently, a number of sizing parameters must be specified when building the
+library.  These parameters are specified near the top of src/xgpu.h.  Please
+edit them according to your needs before building and installing the library.
+
+Installing the Library:
+
+The library can be installed by changing into the src subdirectoy and running
+"make install".  By default, this will install xgpu.h into /usr/local/include
+and libxgpu.so (or libxgpu.dll on Cygwin) to /usr/local/lib.  Specifying
+"prefix=/some/path" on the "make install" command line will install these files
+into /some/path/include and /some/path/lib instead.
+
+$ cd src
+$ make install                    # install under /usr/local
+$ make install prefix=$HOME/local # install under $HOME/local
+
 Using the Library:
+
+The library can be called from C or C++ code.  To use the library, your source
+files need to #include <xpgu.h> and your executable needs to be linked with
+libxpgu.so (or libxgpu.dll on Cygwin).  On UNIX systems, this usaually means
+adding "-L/path/to/lib/dir" and "-lxpgu" to the link command line.
+
+Please see the comments in xgpu.h as well as the usage inthe sample program
+cuda_correlator.cu for more details on how to use the library.
 
 This library has been designed to be interfaced with other parts of an
 FX correlator pipeline, and so not much can be achieved in isolation.
