@@ -13,24 +13,12 @@
   [channel][station][station][polarization][polarization][complexity]
 */
 
-#define USE_GPU
-
-#define TRIANGULAR_ORDER 1000
-#define REAL_IMAG_TRIANGULAR_ORDER 2000
-#define REGISTER_TILE_TRIANGULAR_ORDER 3000
-#define MATRIX_ORDER REGISTER_TILE_TRIANGULAR_ORDER
-
-// size = freq * time * station * pol *sizeof(ComplexInput)
-#define GBYTE (1024llu*1024llu*1024llu)
-
-#define SIGNAL_SIZE GBYTE
-#define SAMPLES SIGNAL_SIZE / (NSTATION*NPOL*sizeof(ComplexInput))
-#define NDIM 2
-
 int main(int argc, char** argv) {
 
   unsigned int seed = 1;
   int verbose = 0;
+  XGPUInfo xgpu_info;
+  unsigned int npol, nstation, nfrequency;
 
   if(argc>1) {
     seed = strtoul(argv[1], NULL, 0);
@@ -41,19 +29,21 @@ int main(int argc, char** argv) {
 
   srand(seed);
 
-  printf("Correlating %llu stations with %llu signals, with %llu channels and integration length %llu\n",
-	 NSTATION, SAMPLES, NFREQUENCY, NTIME);
+  // Get sizing info from library
+  xInfo(&xgpu_info);
+  npol = xgpu_info.npol;
+  nstation = xgpu_info.nstation;
+  nfrequency = xgpu_info.nfrequency;
+
+  printf("Correlating %u stations with %u channels and integration length %u\n",
+	 xgpu_info.nstation, xgpu_info.nfrequency, xgpu_info.ntime);
 #ifndef FIXED_POINT
   printf("Sending floating point data to GPU.\n");
 #else
   printf("Sending fixed point data to GPU.\n");
 #endif
 
-  unsigned long long vecLength = NFREQUENCY * NTIME * NSTATION * NPOL;
-
-
   // perform host memory allocation
-  int packedMatLength = NFREQUENCY * ((NSTATION+1)*(NSTATION/2)*NPOL*NPOL);
 
   // allocate the GPU X-engine memory
   XGPUContext context;
@@ -64,9 +54,11 @@ int main(int argc, char** argv) {
   Complex *cuda_matrix_h = context.matrix_h;
 
   // create an array of complex noise
-  random_complex(array_h, vecLength);
+  random_complex(array_h, xgpu_info.vecLength);
 
-  Complex *omp_matrix_h = (Complex *) malloc(packedMatLength*sizeof(Complex));
+  // ompXengine always uses TRIANGULAR_ORDER
+  int ompMatLength = nfrequency * ((nstation+1)*(nstation/2)*npol*npol);
+  Complex *omp_matrix_h = (Complex *) malloc(ompMatLength*sizeof(Complex));
   printf("Calling CPU X-Engine\n");
 #if (CUBE_MODE == CUBE_DEFAULT)
   ompXengine(omp_matrix_h, array_h);
@@ -80,7 +72,7 @@ int main(int argc, char** argv) {
   reorderMatrix(cuda_matrix_h);
   checkResult(cuda_matrix_h, omp_matrix_h, verbose, array_h);
 
-  int fullMatLength = NFREQUENCY * NSTATION*NSTATION*NPOL*NPOL;
+  int fullMatLength = nfrequency * nstation*nstation*npol*npol;
   Complex *full_matrix_h = (Complex *) malloc(fullMatLength*sizeof(Complex));
 
   // convert from packed triangular to full matrix

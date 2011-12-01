@@ -16,6 +16,7 @@
 #include <omp.h>
 
 #include "xgpu.h"
+#include "xgpu_info.h"
 
 #define cxmac(acc,z0,z1)                                                         \
 do {                                                                             \

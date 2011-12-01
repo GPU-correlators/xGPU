@@ -5,17 +5,6 @@
 extern "C" {
 #endif
 
-// Sizing parameters (fixed for now)
-#define NPOL 2
-#define NSTATION 256ll
-#define NBASELINE ((NSTATION+1)*(NSTATION/2))
-#define NFREQUENCY 10ll
-#define NTIME 1000ll //SAMPLES / NFREQUENCY
-#define NTIME_PIPE 100
-
-// how many pulsars are we binning for (Not implemented yet)
-#define NPULSAR 0
-
 // uncomment to use 8-bit fixed point, comment out for 32-bit floating point
 #define FIXED_POINT
 
@@ -40,9 +29,15 @@ typedef struct ComplexStruct {
   float imag;
 } Complex;
 
+// Used to indicate the size and type of input data
 #define XGPU_INT8    (0)
 #define XGPU_FLOAT32 (1)
 #define XGPU_INT32   (2)
+
+// Used to indicate matrix ordering
+#define TRIANGULAR_ORDER 1000
+#define REAL_IMAG_TRIANGULAR_ORDER 2000
+#define REGISTER_TILE_TRIANGULAR_ORDER 3000
 
 // XGPUInfo is used to convey the compile-time X engine sizing
 // parameters of the XGPU library.  It should be allocated by the caller and

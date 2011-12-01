@@ -15,6 +15,7 @@
 #include <stdio.h>
 
 #include "xgpu.h"
+#include "xgpu_info.h"
 #include "cube/cube.h"
 
 #define PIPE_LENGTH NTIME / NTIME_PIPE

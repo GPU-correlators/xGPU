@@ -4,6 +4,7 @@
 #include <math.h>
 
 #include "xgpu.h"
+#include "xgpu_info.h"
 
 // Normally distributed random numbers with standard deviation of 2.5,
 // quantized to integer values and saturated to the range -7.0 to +7.0.  For
