@@ -24,6 +24,34 @@ NVCCFLAGS += -DTEXTURE_DIM=$(TEXTURE_DIM)
 
 #NVCCFLAGS += -Xptxas -dlcm=cg # disable L1 cache
 
+##########################
+# Sizing variable handlers
+##########################
+
+ifdef NPOL
+NVCCFLAGS += -DNPOL=$(NPOL)
+endif
+
+ifdef NSTATION
+NVCCFLAGS += -DNSTATION=$(NSTATION)
+endif
+
+ifdef NFREQUENCY
+NVCCFLAGS += -DNFREQUENCY=$(NFREQUENCY)
+endif
+
+ifdef NTIME
+NVCCFLAGS += -DNTIME=$(NTIME)
+endif
+
+ifdef NTIMEPIPE
+NVCCFLAGS += -DNTIMEPIPE=$(NTIMEPIPE)
+endif
+
+################################
+# Benchmarking variable handlers
+################################
+
 ifdef CUBE_COUNT_MODE
 NVCCFLAGS += -DCUBE_COUNT_MODE
 CUBE_OBJS = cube/cube.o

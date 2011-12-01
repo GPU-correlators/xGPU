@@ -18,8 +18,6 @@
 #include "xgpu_info.h"
 #include "cube/cube.h"
 
-#define PIPE_LENGTH NTIME / NTIME_PIPE
-
 // whether we are writing the matrix back to device memory (used for benchmarking)
 static int writeMatrix = 1;
 // this must be enabled for this option to work though, slightly hurts performance
@@ -494,21 +492,6 @@ void xgpuInit(XGPUContext *context)
   cudaMemset(internal->array_d[1], '\0', vecLengthPipe*sizeof(ComplexInput));
   cudaMemset(internal->matrix_d, '\0', matLength*sizeof(Complex));
   checkCudaError();
-
-// These checks should be done elsewhere (via cpp?) or at the very least not
-// exit from within a library function.
-#if 0
-  // check NTIME_PIPE and PIPE_LENGTH are valid
-  if (NTIME_PIPE % 4 != 0) {
-    printf("Error, NTIME_PIPE must be a multiple of 4\n");
-    exit(-1);
-  }
-
-  if (PIPE_LENGTH * NTIME_PIPE != NTIME) {
-    printf("Error, PIPE_LENGTH %llu is not a factor of NTIME %llu\n", PIPE_LENGTH, NTIME);
-    exit(-1);
-  }
-#endif
 
   // create the streams
   internal->streams = (cudaStream_t*) malloc(2*sizeof(cudaStream_t));

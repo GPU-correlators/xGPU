@@ -2,11 +2,37 @@
 #define XGPU_SIZES_H
 
 // Sizing parameters (fixed for now)
+#ifndef NPOL
 #define NPOL 2
+#endif
+
+#ifndef NSTATION
 #define NSTATION 256
+#endif
+
+#ifndef NFREQUENCY
 #define NFREQUENCY 10
+#endif
+
+#ifndef NTIME
 #define NTIME 1000
+#endif
+
+#ifndef NTIME_PIPE
 #define NTIME_PIPE 100
+#endif
+
+// Ensure that NTIME_PIPE is a multiple of 4
+#if (NTIME_PIPE/4)*4 != NTIME_PIPE
+#error NTIME_PIPE must be a multiple of 4
+#endif
+
+// Ensure that NTIME is a multiple of NTIME_PIPE
+#if (NTIME/NTIME_PIPE)*NTIME_PIPE != NTIME
+#error NTIME must be a multiple of NTIME_PIPE
+#else
+#define PIPE_LENGTH (NTIME/NTIME_PIPE)
+#endif
 
 // Derived from NSTATION (do not change)
 #define NBASELINE ((NSTATION+1)*(NSTATION/2))
