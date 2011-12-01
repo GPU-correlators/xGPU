@@ -74,7 +74,7 @@ static __device__ __constant__ unsigned char tIndex[PIPE_LENGTH*NFREQUENCY];
 
 
 //determine row and column from blockIdx.x
-CUBE_DEVICE(void, findPosition, unsigned int &Col, unsigned int &Row, unsigned int &blockX, unsigned int &blockY) {
+CUBE_DEVICE(static void, findPosition, unsigned int &Col, unsigned int &Row, unsigned int &blockX, unsigned int &blockY) {
   unsigned int k = blockIdx.x;
   blockY = -0.5f + sqrtf(0.25f + 2*k);
   blockX = k - (((blockY+1)*(blockY)) >> 1);
@@ -82,12 +82,12 @@ CUBE_DEVICE(void, findPosition, unsigned int &Col, unsigned int &Row, unsigned i
   Col = (blockX*TILE_WIDTH + threadIdx.x);
 }
 
-__device__ void operator+=( float4 &a, const float4 b ) {
+__device__ static void operator+=( float4 &a, const float4 b ) {
   a.x += b.x; a.y += b.y; a.z += b.z; a.w += b.w;
 }
 
 // device function to write out the matrix elements
-CUBE_DEVICE(void, write2x2, unsigned int &Col, unsigned int &Row, float4 *matrix_real, float4 *matrix_imag, 
+CUBE_DEVICE(static void, write2x2, unsigned int &Col, unsigned int &Row, float4 *matrix_real, float4 *matrix_imag, 
 	    float sum11XXreal, float sum11XXimag, float sum11XYreal, float sum11XYimag,
 	    float sum11YXreal, float sum11YXimag, float sum11YYreal, float sum11YYimag,
 	    float sum12XXreal, float sum12XXimag, float sum12XYreal, float sum12XYimag,
@@ -282,7 +282,7 @@ CUBE_DEVICE(void, write2x2, unsigned int &Col, unsigned int &Row, float4 *matrix
   sum22YYimag += row2Yimag * col2Yreal;					\
   sum22YYimag -= row2Yreal * col2Yimag;}
 
-CUBE_KERNEL(shared2x2float2, float4 *matrix_real, float4 *matrix_imag, const int Nstation, const int write)
+CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, const int Nstation, const int write)
 {
   CUBE_START;
 
