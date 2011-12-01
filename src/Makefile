@@ -26,19 +26,23 @@ NVCCFLAGS += -DTEXTURE_DIM=$(TEXTURE_DIM)
 
 ifdef CUBE_COUNT_MODE
 NVCCFLAGS += -DCUBE_COUNT_MODE
+CUBE_OBJS = cube/cube.o
 endif
 
 ifdef CUBE_TIME_MODE
 # FIXME? The test seems to fail on the timing run - why is this? - summation is doubled for some reason
 NVCCFLAGS += -DCUBE_TIME_MODE
+CUBE_OBJS = cube/cube.o
 endif
 
 ifdef CUBE_ASYNC_COUNT_MODE
 NVCCFLAGS += -DCUBE_ASYNC_COUNT_MODE
+CUBE_OBJS = cube/cube.o
 endif
 
 ifdef CUBE_ASYNC_TIME_MODE
 NVCCFLAGS += -DCUBE_ASYNC_TIME_MODE
+CUBE_OBJS = cube/cube.o
 endif
 
 # this sets the pipeline to run in an infinite loop - for power measurement
@@ -51,7 +55,7 @@ OBJS  = cuda_correlator.o
 LIBXGPU_OBJS  = cuda_xengine.o
 LIBXGPU_OBJS += omp_xengine.o
 LIBXGPU_OBJS += cpu_util.o
-LIBXGPU_OBJS += cube/cube.o
+LIBXGPU_OBJS += $(CUBE_OBJS)
 
 # Each object file has a corresponding dependency file
 DEPS = $(OBJS:.o=.d) $(LIBXGPU_OBJS:.o=.d)
@@ -116,7 +120,7 @@ tags:
 
 clean:
 	rm -f ./cuda_correlator ./libxgpu.so
-	rm -f $(OBJS) $(LIBXGPU_OBJS)
+	rm -f $(OBJS) $(LIBXGPU_OBJS) cube/cube.o
 	rm -f $(DEPS)
 	rm -f tags
 
