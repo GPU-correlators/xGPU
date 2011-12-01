@@ -30,7 +30,7 @@ int main(int argc, char** argv) {
   srand(seed);
 
   // Get sizing info from library
-  xInfo(&xgpu_info);
+  xgpuInfo(&xgpu_info);
   npol = xgpu_info.npol;
   nstation = xgpu_info.nstation;
   nfrequency = xgpu_info.nfrequency;
@@ -49,34 +49,34 @@ int main(int argc, char** argv) {
   XGPUContext context;
   context.array_h = NULL;
   context.matrix_h = NULL;
-  xInit(&context);
+  xgpuInit(&context);
   ComplexInput *array_h = context.array_h; // this is pinned memory
   Complex *cuda_matrix_h = context.matrix_h;
 
   // create an array of complex noise
-  random_complex(array_h, xgpu_info.vecLength);
+  xgpuRandomComplex(array_h, xgpu_info.vecLength);
 
   // ompXengine always uses TRIANGULAR_ORDER
   int ompMatLength = nfrequency * ((nstation+1)*(nstation/2)*npol*npol);
   Complex *omp_matrix_h = (Complex *) malloc(ompMatLength*sizeof(Complex));
   printf("Calling CPU X-Engine\n");
 #if (CUBE_MODE == CUBE_DEFAULT)
-  ompXengine(omp_matrix_h, array_h);
+  xgpuOmpXengine(omp_matrix_h, array_h);
 #endif
 
   printf("Calling GPU X-Engine\n");
-  cudaXengine(&context);
+  xgpuCudaXengine(&context);
 
 #if (CUBE_MODE == CUBE_DEFAULT)
   
-  reorderMatrix(cuda_matrix_h);
-  checkResult(cuda_matrix_h, omp_matrix_h, verbose, array_h);
+  xgpuReorderMatrix(cuda_matrix_h);
+  xgpuCheckResult(cuda_matrix_h, omp_matrix_h, verbose, array_h);
 
   int fullMatLength = nfrequency * nstation*nstation*npol*npol;
   Complex *full_matrix_h = (Complex *) malloc(fullMatLength*sizeof(Complex));
 
   // convert from packed triangular to full matrix
-  extractMatrix(full_matrix_h, cuda_matrix_h);
+  xgpuExtractMatrix(full_matrix_h, cuda_matrix_h);
 
   free(full_matrix_h);
 #endif
@@ -85,7 +85,7 @@ int main(int argc, char** argv) {
   free(omp_matrix_h);
 
   // free gpu memory
-  xFree(&context);
+  xgpuFree(&context);
 
   return 0;
 }

@@ -24,7 +24,7 @@ do {                                                                            
   acc.imag += (float)z0.imag * (float)z1.real - (float)z0.real * (float)z1.imag; \
 } while (0)
 
-void ompXengine(Complex *matrix_h, ComplexInput *array_h) {
+void xgpuOmpXengine(Complex *matrix_h, ComplexInput *array_h) {
   int num_procs = omp_get_num_procs();
   #pragma omp parallel num_threads(num_procs)
   {

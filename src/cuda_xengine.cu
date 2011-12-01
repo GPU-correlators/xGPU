@@ -414,7 +414,7 @@ static XGPUInfo precompiled_sizes = {
 };
 
 // Initialize XGPUInfo structure with compile-time parameters.
-void xInfo(XGPUInfo *pcxs)
+void xgpuInfo(XGPUInfo *pcxs)
 {
   pcxs->npol           = precompiled_sizes.npol;
   pcxs->nstation       = precompiled_sizes.nstation;
@@ -429,7 +429,7 @@ void xInfo(XGPUInfo *pcxs)
 }
 
 // Initialize the XGPU.
-void xInit(XGPUContext *context)
+void xgpuInit(XGPUContext *context)
 {
 
   CUBE_INIT();
@@ -539,7 +539,7 @@ void xInit(XGPUContext *context)
 
 
 // Free up the memory on the host and device
-void xFree(XGPUContext *context)
+void xgpuFree(XGPUContext *context)
 {
   XGPUInternalContext *internal = (XGPUInternalContext *)context->internal;
 
@@ -571,7 +571,7 @@ void xFree(XGPUContext *context)
   CUBE_WRITE();
 }
 
-void cudaXengine(XGPUContext *context)
+void xgpuCudaXengine(XGPUContext *context)
 {
   XGPUInternalContext *internal = (XGPUInternalContext *)context->internal;
   if(!internal) {

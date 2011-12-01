@@ -84,7 +84,7 @@ typedef struct XGPUContextStruct {
 //
 // The XGPUInfo structure pointed to by pcxs is initalized with
 // compile-time sizing parameters.
-void xInfo(XGPUInfo *pcxs);
+void xgpuInfo(XGPUInfo *pcxs);
 
 // Initialize the XGPU.
 //
@@ -99,25 +99,25 @@ void xInfo(XGPUInfo *pcxs);
 // If context->matrix_h is zero, an array of Complex elements is allocated (of
 // the appropriate size) via CudaMallocHost, otherwise context->matrix_h is
 // passed to CudaHostRegister.
-void xInit(XGPUContext *context);
+void xgpuInit(XGPUContext *context);
 
-void xFree(XGPUContext *context);
+void xgpuFree(XGPUContext *context);
 
-void cudaXengine(XGPUContext *context);
+void xgpuCudaXengine(XGPUContext *context);
 
 // Functions in cpu_util.cc
 
-void random_complex(ComplexInput* random_num, long long unsigned int length);
+void xgpuRandomComplex(ComplexInput* random_num, long long unsigned int length);
 
-void reorderMatrix(Complex *matrix);
+void xgpuReorderMatrix(Complex *matrix);
 
-void checkResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *array_h);
+void xgpuCheckResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *array_h);
 
-void extractMatrix(Complex *matrix, Complex *packed);
+void xgpuExtractMatrix(Complex *matrix, Complex *packed);
 
 // Functions in omp_util.cc
 
-void ompXengine(Complex *matrix_h, ComplexInput *array_h);
+void xgpuOmpXengine(Complex *matrix_h, ComplexInput *array_h);
 
 #ifdef __cplusplus
 }

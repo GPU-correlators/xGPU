@@ -10,7 +10,7 @@
 // quantized to integer values and saturated to the range -7.0 to +7.0.  For
 // the fixed point case, the values are then converted to ints, scaled by 16
 // (i.e. -112 to +112), and finally stored as signed chars.
-void random_complex(ComplexInput* random_num, long long unsigned int length) {
+void xgpuRandomComplex(ComplexInput* random_num, long long unsigned int length) {
   int i;
   double u1,u2,r,theta,a,b;
   double stddev=2.5;
@@ -54,7 +54,7 @@ void random_complex(ComplexInput* random_num, long long unsigned int length) {
   }
 }
 
-void reorderMatrix(Complex *matrix) {
+void xgpuReorderMatrix(Complex *matrix) {
 
 #if MATRIX_ORDER == REGISTER_TILE_TRIANGULAR_ORDER
   // reorder the matrix from REGISTER_TILE_TRIANGULAR_ORDER to TRIANGULAR_ORDER
@@ -136,7 +136,7 @@ void reorderMatrix(Complex *matrix) {
 #else
 #define TOL 1e-5
 #endif // FIXED_POINT
-void checkResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *array_h) {
+void xgpuCheckResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *array_h) {
 
   printf("Checking result (tolerance == %g)...\n", TOL); fflush(stdout);
 
@@ -209,7 +209,7 @@ void checkResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *array_h)
 }
 
 // Extracts the full matrix from the packed Hermitian form
-void extractMatrix(Complex *matrix, Complex *packed) {
+void xgpuExtractMatrix(Complex *matrix, Complex *packed) {
 
   int f, i, j, pol1, pol2;
   for(f=0; f<NFREQUENCY; f++){
