@@ -405,11 +405,12 @@ static XGPUInfo precompiled_sizes = {
   vecLength:     NFREQUENCY * NTIME * NSTATION * NPOL,
   vecLengthPipe: NFREQUENCY * NTIME_PIPE * NSTATION * NPOL,
 #if (MATRIX_ORDER == REGISTER_TILE_TRIANGULAR_ORDER)
-  matLength:     NFREQUENCY * ((NSTATION/2+1)*(NSTATION/4)*NPOL*NPOL*4) * (NPULSAR + 1)
+  matLength:     NFREQUENCY * ((NSTATION/2+1)*(NSTATION/4)*NPOL*NPOL*4) * (NPULSAR + 1),
 #else
   // Matrix length is same for REGISTER_TILE_TRIANGULAR_ORDER and TRIANGULAR_ORDER
-  matLength:     NFREQUENCY * ((NSTATION+1)*(NSTATION/2)*NPOL*NPOL) * (NPULSAR + 1)
+  matLength:     NFREQUENCY * ((NSTATION+1)*(NSTATION/2)*NPOL*NPOL) * (NPULSAR + 1),
 #endif
+  matrix_order:  MATRIX_ORDER
 };
 
 // Initialize XGPUInfo structure with compile-time parameters.
