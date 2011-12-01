@@ -110,7 +110,7 @@ void cudaXengine(XGPUContext *context);
 
 // Functions in cpu_util.cc
 
-void random_complex(ComplexInput* random_num, int length);
+void random_complex(ComplexInput* random_num, long long unsigned int length);
 
 void reorderMatrix(Complex *matrix);
 

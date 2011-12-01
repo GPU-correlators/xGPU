@@ -9,7 +9,7 @@
 // quantized to integer values and saturated to the range -7.0 to +7.0.  For
 // the fixed point case, the values are then converted to ints, scaled by 16
 // (i.e. -112 to +112), and finally stored as signed chars.
-void random_complex(ComplexInput* random_num, int length) {
+void random_complex(ComplexInput* random_num, long long unsigned int length) {
   int i;
   double u1,u2,r,theta,a,b;
   double stddev=2.5;
