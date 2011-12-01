@@ -87,15 +87,7 @@ objs: $(OBJS) $(LIBXGPU_OBJS)
 	sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
 		  -e '/^$$/ d' -e 's/$$/ :/' < $*.P >> $*.d && \
 	rm -f $*.P
-	$(NVCC) $(NVCCFLAGS) -c -o $@ $<
-
-%.o: %.cc
-	@$(NVCC) $(NVCCFLAGS) -M -o $*.P $< && \
-	cp $*.P $*.d && \
-	sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
-		  -e '/^$$/ d' -e 's/$$/ :/' < $*.P >> $*.d && \
-	rm -f $*.P
-	$(NVCC) $(NVCCFLAGS) -c -o $@ $<
+	$(NVCC) $(NVCCFLAGS) $(CFLAGS) -c -o $@ $<
 
 %.o: %.cu
 	@$(NVCC) $(NVCCFLAGS) -M -o $*.P $< && \
@@ -103,7 +95,7 @@ objs: $(OBJS) $(LIBXGPU_OBJS)
 	sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
 		  -e '/^$$/ d' -e 's/$$/ :/' < $*.P >> $*.d && \
 	rm -f $*.P
-	$(NVCC) $(NVCCFLAGS) -c -o $@ $<
+	$(NVCC) $(NVCCFLAGS) $(CFLAGS) -c -o $@ $<
 
 install: $(LIBXGPU)
 	mkdir -p $(includedir)
