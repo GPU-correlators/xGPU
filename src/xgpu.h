@@ -78,9 +78,14 @@ typedef struct XGPUContextStruct {
 
 // Functions in cuda_xengine.cu
 
+// Get pointer to library version string.
+//
+// The library version string should not be modified or freed!
+const char * xgpuVersionString();
+
 // Get compile-time sizing parameters.
 //
-// The XGPUInfo structure pointed to by pcxs is initalized with
+// The XGPUInfo structure pointed to by pcxs is populated with
 // compile-time sizing parameters.
 void xgpuInfo(XGPUInfo *pcxs);
 

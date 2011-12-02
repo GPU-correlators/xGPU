@@ -25,6 +25,9 @@ NVCCFLAGS += -DTEXTURE_DIM=$(TEXTURE_DIM)
 
 #NVCCFLAGS += -Xptxas -dlcm=cg # disable L1 cache
 
+# Possibly (re-)build xgpu_version.h
+$(shell $(SHELL) gen_xgpu_version.sh)
+
 ##########################
 # Sizing variable handlers
 ##########################

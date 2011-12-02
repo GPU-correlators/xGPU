@@ -9,6 +9,7 @@ int main(int argc, char** argv)
 
   xgpuInfo(&xgpu_info);
 
+  printf("xGPU library version: %s\n", xgpuVersionString());
   printf("Number of polarizations: %u\n", xgpu_info.npol);
   printf("Number of stations: %u\n", xgpu_info.nstation);
   printf("Number of baselines: %u\n", xgpu_info.nbaseline);

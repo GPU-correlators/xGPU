@@ -16,6 +16,7 @@
 
 #include "xgpu.h"
 #include "xgpu_info.h"
+#include "xgpu_version.h"
 #include "cube/cube.h"
 
 // Set data types accordingly
@@ -420,7 +421,17 @@ static XGPUInfo compiletime_info = {
   matrix_order:  MATRIX_ORDER
 };
 
-// Initialize XGPUInfo structure with compile-time parameters.
+// This stringification trick is from "info cpp"
+#define STRINGIFY1(s) #s
+#define STRINGIFY(s) STRINGIFY1(s)
+static const char xgpu_version[] = STRINGIFY(XGPU_VERSION);
+
+const char * xgpuVersionString()
+{
+  return xgpu_version;
+}
+
+// Populate XGPUInfo structure with compile-time parameters.
 void xgpuInfo(XGPUInfo *pcxs)
 {
   pcxs->npol           = compiletime_info.npol;
