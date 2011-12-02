@@ -27,37 +27,59 @@ sm1.x CUDA architectures.
 
 Building the Library:
 
-The library and the sample program "cuda_correlator" can be built by changing
-into the src subdirectoy and running "make".
+The library, library query tool "xgpuinfo", and the sample program
+"cuda_correlator" can be built by changing into the src subdirectoy
+and running "make".
 
-$ cd src
-$ make
+  $ cd src
+  $ make
 
-Currently, a number of sizing parameters must be specified when building the
-library.  These parameters are specified near the top of src/xgpu.h.  Please
-edit them according to your needs before building and installing the library.
+Currently, a number of sizing parameters must be specified when
+building the library.  Default values of these parameters are
+specified near the top of src/xgpu_info.h.  The default values can be
+overridden on the make command line to suit your instrument's needs.
+The options that can be given on the make command line are shown here
+with there default values.
+
+  NPOL=2
+  NSTATION=256
+  NFREQUENCY=10
+  NTIME=1000
+  NTIME_PIPE=100
+
+Note that NTIME_PIPE must be a multiple of 4 and NTIME must be a
+multiple of NTIME_PIPE.  The preprocessor will error out if those two
+conditions are not met.
+
+For example, to compile with NSTATION set to 128 and all other
+parameters at their default values:
+  
+  $ make NSTATION=128
 
 Installing the Library:
 
-The library can be installed by changing into the src subdirectoy and running
-"make install".  By default, this will install xgpu.h into /usr/local/include
-and libxgpu.so (or libxgpu.dll on Cygwin) to /usr/local/lib.  Specifying
-"prefix=/some/path" on the "make install" command line will install these files
-into /some/path/include and /some/path/lib instead.
+The library can be installed by changing into the src subdirectoy and
+running "make install".  By default, this will install xgpuinfo into
+/usr/local/bin, xgpu.h into /usr/local/include, and libxgpu.so (or
+libxgpu.dll on Cygwin) to /usr/local/lib.  Specifying
+"prefix=/some/path" on the "make install" command line will install
+these files into /some/path/bin, /some/path/include, and
+/some/path/lib instead.
 
-$ cd src
-$ make install                    # install under /usr/local
-$ make install prefix=$HOME/local # install under $HOME/local
+  $ cd src
+  $ make install                    # install under /usr/local
+  $ make install prefix=$HOME/local # install under $HOME/local
 
 Using the Library:
 
-The library can be called from C or C++ code.  To use the library, your source
-files need to #include <xpgu.h> and your executable needs to be linked with
-libxpgu.so (or libxgpu.dll on Cygwin).  On UNIX systems, this usaually means
-adding "-L/path/to/lib/dir" and "-lxpgu" to the link command line.
+The library can be called from C or C++ code.  To use the library,
+your source files need to #include <xpgu.h> and your executable needs
+to be linked with libxpgu.so (or libxgpu.dll on Cygwin).  On UNIX
+systems, this usaually means adding "-L/path/to/lib/dir" and "-lxpgu"
+to the link command line.
 
-Please see the comments in xgpu.h as well as the usage inthe sample program
-cuda_correlator.cu for more details on how to use the library.
+Please see the comments in xgpu.h as well as the usage in the sample
+program cuda_correlator.cu for more details on how to use the library.
 
 This library has been designed to be interfaced with other parts of an
 FX correlator pipeline, and so not much can be achieved in isolation.
@@ -93,3 +115,4 @@ Authors:
 Michael Clark (Harvard University)
 Paul La Plante (Loyola University Maryland)
 Lincoln Greenhill (Harvard-Smithsonian Center for Astrophysics)
+David MacMahon (University of California, Berkeley)
