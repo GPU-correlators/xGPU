@@ -18,6 +18,15 @@
 #include "xgpu_info.h"
 #include "cube/cube.h"
 
+// Set data types accordingly
+#ifndef FIXED_POINT
+#define COMPLEX_INPUT float2
+#define SCALE 1.0f // no rescale required for FP32
+#else
+#define COMPLEX_INPUT char2 
+#define SCALE 16129.0f // need to rescale result 
+#endif // FIXED_POINT
+
 // whether we are writing the matrix back to device memory (used for benchmarking)
 static int writeMatrix = 1;
 // this must be enabled for this option to work though, slightly hurts performance

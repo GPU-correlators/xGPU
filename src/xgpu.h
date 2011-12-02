@@ -5,18 +5,16 @@
 extern "C" {
 #endif
 
-// uncomment to use 8-bit fixed point, comment out for 32-bit floating point
+// If FIXED_POINT is defined, the library was compiled to use 8-bit fixed
+// point (i.e. integers), otherwise it was compiled to use 32-bit floating
+// point (i.e. floats).
 #define FIXED_POINT
 
 // set the data type accordingly
 #ifndef FIXED_POINT
 typedef float ReImInput;
-#define COMPLEX_INPUT float2
-#define SCALE 1.0f // no rescale required for FP32
 #else
 typedef char ReImInput;
-#define COMPLEX_INPUT char2 
-#define SCALE 16129.0f // need to rescale result 
 #endif // FIXED_POINT
 
 typedef struct ComplexInputStruct {
