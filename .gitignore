@@ -7,3 +7,4 @@ src/*.log
 tags
 src/cuda_correlator
 src/libxgpu.so
+src/xgpuinfo

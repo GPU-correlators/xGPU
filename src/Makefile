@@ -4,6 +4,7 @@ TEXTURE_DIM ?= 1
 
 NVCC = nvcc
 prefix ?= /usr/local
+bindir ?= $(prefix)/bin
 libdir ?= $(prefix)/lib
 includedir ?= $(prefix)/include
 
@@ -78,7 +79,9 @@ ifeq ($(strip $(POWER_LOOP)), yes)
 NVCCFLAGS += -DPOWER_LOOP
 endif
 
-OBJS  = cuda_correlator.o
+CUDA_CORRELATOR_OBJS  = cuda_correlator.o
+
+XGPUINFO_OBJS  = xgpuinfo.o
 
 LIBXGPU_OBJS  = cuda_xengine.o
 LIBXGPU_OBJS += omp_xengine.o
@@ -88,9 +91,12 @@ LIBXGPU_OBJS += $(CUBE_OBJS)
 # Each object file has a corresponding dependency file
 DEPS = $(OBJS:.o=.d) $(LIBXGPU_OBJS:.o=.d)
 
-all: cuda_correlator
+all: cuda_correlator xgpuinfo $(LIBXGPU)
 
-cuda_correlator: $(OBJS) libxgpu.so
+cuda_correlator: $(CUDA_CORRELATOR_OBJS) $(LIBXGPU)
+	$(NVCC) $(NVCCFLAGS) $^ -o $@ $(LFLAGS) $(RPATH) -lxgpu
+
+xgpuinfo: $(XGPUINFO_OBJS) $(LIBXGPU)
 	$(NVCC) $(NVCCFLAGS) $^ -o $@ $(LFLAGS) $(RPATH) -lxgpu
 
 $(LIBXGPU): $(LIBXGPU_OBJS)
@@ -125,13 +131,16 @@ objs: $(OBJS) $(LIBXGPU_OBJS)
 	rm -f $*.P
 	$(NVCC) $(NVCCFLAGS) $(CFLAGS) -c -o $@ $<
 
-install: $(LIBXGPU)
+install: xgpuinfo $(LIBXGPU)
+	mkdir -p $(bindir)
+	cp xgpuinfo $(bindir)
 	mkdir -p $(includedir)
 	cp xgpu.h $(includedir)
 	mkdir -p $(libdir)
 	cp $(LIBXGPU) $(libdir)
 
 uninstall:
+	rm -f $(bindir)/xgpuinfo
 	rm -f $(includedir)/xgpu.h
 	rm -f $(libdir)/$(LIBXGPU)
 
@@ -139,7 +148,7 @@ tags:
 	ctags -R .
 
 clean:
-	rm -f ./cuda_correlator ./libxgpu.so
+	rm -f ./cuda_correlator ./libxgpu.so ./xgpuinfo
 	rm -f $(OBJS) $(LIBXGPU_OBJS) cube/cube.o
 	rm -f $(DEPS)
 	rm -f tags
