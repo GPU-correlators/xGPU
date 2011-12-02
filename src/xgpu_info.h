@@ -1,6 +1,8 @@
 #ifndef XGPU_SIZES_H
 #define XGPU_SIZES_H
 
+#include "xgpu.h" // For MATRIX_ORDER_XXX macros
+
 // Sizing parameters (fixed for now)
 #ifndef NPOL
 #define NPOL 2

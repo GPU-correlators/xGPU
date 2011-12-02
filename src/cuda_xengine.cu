@@ -388,7 +388,7 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
 #undef LOAD
 #undef TWO_BY_TWO_COMPUTE
 
-static XGPUInfo precompiled_sizes = {
+static XGPUInfo compiletime_info = {
   npol:          NPOL,
   nstation:      NSTATION,
   nbaseline:     NBASELINE,
@@ -414,16 +414,17 @@ static XGPUInfo precompiled_sizes = {
 // Initialize XGPUInfo structure with compile-time parameters.
 void xgpuInfo(XGPUInfo *pcxs)
 {
-  pcxs->npol           = precompiled_sizes.npol;
-  pcxs->nstation       = precompiled_sizes.nstation;
-  pcxs->nbaseline      = precompiled_sizes.nbaseline;
-  pcxs->nfrequency     = precompiled_sizes.nfrequency;
-  pcxs->ntime          = precompiled_sizes.ntime;
-  pcxs->ntimepipe      = precompiled_sizes.ntimepipe;
-  pcxs->input_type     = precompiled_sizes.input_type;
-  pcxs->vecLength      = precompiled_sizes.vecLength;
-  pcxs->vecLengthPipe  = precompiled_sizes.vecLengthPipe;
-  pcxs->matLength      = precompiled_sizes.matLength;
+  pcxs->npol           = compiletime_info.npol;
+  pcxs->nstation       = compiletime_info.nstation;
+  pcxs->nbaseline      = compiletime_info.nbaseline;
+  pcxs->nfrequency     = compiletime_info.nfrequency;
+  pcxs->ntime          = compiletime_info.ntime;
+  pcxs->ntimepipe      = compiletime_info.ntimepipe;
+  pcxs->input_type     = compiletime_info.input_type;
+  pcxs->vecLength      = compiletime_info.vecLength;
+  pcxs->vecLengthPipe  = compiletime_info.vecLengthPipe;
+  pcxs->matLength      = compiletime_info.matLength;
+  pcxs->matrix_order   = compiletime_info.matrix_order;
 }
 
 // Initialize the XGPU.
@@ -441,9 +442,9 @@ void xgpuInit(XGPUContext *context)
   }
   context->internal = internal;
 
-  long long unsigned int vecLength = precompiled_sizes.vecLength;
-  long long unsigned int vecLengthPipe = precompiled_sizes.vecLengthPipe;
-  long long unsigned int matLength = precompiled_sizes.matLength;
+  long long unsigned int vecLength = compiletime_info.vecLength;
+  long long unsigned int vecLengthPipe = compiletime_info.vecLengthPipe;
+  long long unsigned int matLength = compiletime_info.matLength;
 
   //assign the device
   cudaSetDevice(0); // TODO Put device number in XGPU(Internal?)Context
@@ -453,7 +454,7 @@ void xgpuInit(XGPUContext *context)
     // Register caller-allocated host memory with CUDA.
     // This requires that the caller allocated the memory properly vis-a-vis
     // the requirements of cudaHostRegister!
-    cudaHostRegister(context->array_h, precompiled_sizes.vecLength*sizeof(ComplexInput), 0);
+    cudaHostRegister(context->array_h, compiletime_info.vecLength*sizeof(ComplexInput), 0);
     internal->free_array_h = 0;
   } else {
     // TODO Move printf calls out of library!
@@ -471,7 +472,7 @@ void xgpuInit(XGPUContext *context)
     // Register caller-allocated host memory with CUDA.
     // This requires that the caller allocated the memory properly vis-a-vis
     // the requirements of cudaHostRegister!
-    cudaHostRegister(context->matrix_h, precompiled_sizes.vecLength*sizeof(ComplexInput), 0);
+    cudaHostRegister(context->matrix_h, compiletime_info.vecLength*sizeof(ComplexInput), 0);
     internal->free_matrix_h = 0;
   } else {
     // allocate host memory
@@ -568,15 +569,15 @@ void xgpuCudaXengine(XGPUContext *context)
 
   // set pointers to the real and imaginary components of the device matrix
   float4 *matrix_real_d = (float4 *)(internal->matrix_d);
-  float4 *matrix_imag_d = (float4 *)(internal->matrix_d + precompiled_sizes.matLength/2);
+  float4 *matrix_imag_d = (float4 *)(internal->matrix_d + compiletime_info.matLength/2);
 
-  int Nblock = precompiled_sizes.nstation/min(TILE_HEIGHT,TILE_WIDTH);
+  int Nblock = compiletime_info.nstation/min(TILE_HEIGHT,TILE_WIDTH);
   ComplexInput *array_load;
   ComplexInput *array_compute; 
 
   dim3 dimBlock(TILE_WIDTH,TILE_HEIGHT,1);
   //allocated exactly as many thread blocks as are needed
-  dim3 dimGrid(((Nblock/2+1)*(Nblock/2))/2, precompiled_sizes.nfrequency);
+  dim3 dimGrid(((Nblock/2+1)*(Nblock/2))/2, compiletime_info.nfrequency);
 
   // Create events used to record the completion of the device-host transfer and kernels
   cudaEvent_t copyCompletion[2], kernelCompletion[2];
@@ -589,7 +590,7 @@ void xgpuCudaXengine(XGPUContext *context)
   CUBE_ASYNC_START(ENTIRE_PIPELINE);
 
   // Need to fill pipeline before loop
-  long long unsigned int vecLengthPipe = precompiled_sizes.vecLengthPipe;
+  long long unsigned int vecLengthPipe = compiletime_info.vecLengthPipe;
   ComplexInput *array_hp = &context->array_h[0*vecLengthPipe];
   CUBE_ASYNC_COPY_CALL(array_d[0], array_hp, vecLengthPipe*sizeof(ComplexInput), cudaMemcpyHostToDevice, streams[0]);
   cudaEventRecord(copyCompletion[0], streams[0]); // record the completion of the h2d transfer
@@ -641,7 +642,7 @@ void xgpuCudaXengine(XGPUContext *context)
   checkCudaError();
 
   //copy the data back, employing a similar strategy as above
-  CUBE_COPY_CALL(context->matrix_h, internal->matrix_d, precompiled_sizes.matLength*sizeof(Complex), cudaMemcpyDeviceToHost);
+  CUBE_COPY_CALL(context->matrix_h, internal->matrix_d, compiletime_info.matLength*sizeof(Complex), cudaMemcpyDeviceToHost);
   checkCudaError();
 
   CUBE_ASYNC_END(ENTIRE_PIPELINE);
