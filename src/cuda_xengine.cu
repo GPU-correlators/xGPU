@@ -57,6 +57,7 @@ __device__ __constant__ unsigned char tIndex[PIPE_LENGTH*NFREQUENCY];
     if (error != cudaSuccess) {				\
       printf("(CUDA) %s", cudaGetErrorString(error));	\
       printf(" (" __FILE__ ":%d)\n", __LINE__);		\
+      exit(0);						\
     }							\
   } while (0)
 
@@ -377,7 +378,8 @@ void xInit(ComplexInput **array_h, Complex **matrix_h, int Nstat) {
 #endif
 
   //assign the device
-  cudaSetDevice(0);
+  const int device = 0;
+  cudaSetDevice(device);
   checkCudaError();
 
   printf("Host memory allocated: signals = %6.4f GiB, matrix = %6.4f GiB\n", 
@@ -397,6 +399,10 @@ void xInit(ComplexInput **array_h, Complex **matrix_h, int Nstat) {
   cudaMalloc((void **) &matrix_d, matLength*sizeof(Complex));
   checkCudaError();
   
+  printf("Device memory allocated: signals = %6.4f GiB, matrix = %6.4f GiB\n", 
+	 (float)(vecLengthPipe*sizeof(ComplexInput))/(float)(1<<30), 
+	 (float)(matLength*sizeof(Complex))/(float)(1<<30));
+
   //clear out any previous values
   cudaMemset(array_d[0], '0', vecLengthPipe*sizeof(ComplexInput));
   cudaMemset(array_d[1], '0', vecLengthPipe*sizeof(ComplexInput));
@@ -442,6 +448,27 @@ void xInit(ComplexInput **array_h, Complex **matrix_h, int Nstat) {
 	       t, f, timeIndex[t][f], timeIndex2[t][f]);
   }
 #endif
+  
+  // check 2-d texture dimensions are ok
+  cudaDeviceProp deviceProp;
+  cudaGetDeviceProperties(&deviceProp, device);
+
+  printf("\nDevice %d: \"%s\"\n", device, deviceProp.name);
+  printf("  Max Texture Dimension Size (x,y,z)             1D=(%d), 2D=(%d,%d), 3D=(%d,%d,%d)\n",
+	 deviceProp.maxTexture1D, deviceProp.maxTexture2D[0], deviceProp.maxTexture2D[1],
+	 deviceProp.maxTexture3D[0], deviceProp.maxTexture3D[1], deviceProp.maxTexture3D[2]);
+
+  if (NFREQUENCY * Nstation * NPOL > deviceProp.maxTexture2D[0]) {
+    printf("Texture x dimension %llu greater than limit %d\n", 
+	   NFREQUENCY*NSTATION*NPOL, deviceProp.maxTexture2D[0]);
+    exit(0);
+  }
+
+  if (NTIME_PIPE > deviceProp.maxTexture2D[1]) {
+    printf("Texture y dimension %d greater than limit %d\n", 
+	   NTIME_PIPE, deviceProp.maxTexture2D[1]);
+    exit(0);
+  }
 
 }
 
