@@ -71,7 +71,9 @@ CUBE_DEVICE(void, findPosition, unsigned int &Col, unsigned int &Row, unsigned i
 }
 
 __device__ void operator+=( float4 &a, const float4 b ) {
-  a.x += b.x; a.y += b.y; a.z += b.z; a.w += b.w;
+ float4 t = a;
+ t.x += b.x; t.y += b.y; t.z += b.z; t.w += b.w;
+ a = t;
 }
 
 // device function to write out the matrix elements
