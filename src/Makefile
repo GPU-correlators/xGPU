@@ -1,37 +1,159 @@
-ifeq ($(strip $(OSTYPE)),cygwin)
+CUDA_LIBDIR ?= /opt/cuda/lib64
+DEBUG ?= -O3
+TEXTURE_DIM ?= 1
+
 NVCC = nvcc
-NVCCFLAGS = --compiler-bindir "c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin" -L"c:\Program Files\Microsoft SDKs\Windows\v7.1\Lib" -Xcompiler /openmp
+prefix ?= /usr/local
+bindir ?= $(prefix)/bin
+libdir ?= $(prefix)/lib
+includedir ?= $(prefix)/include
+
+ifeq ($(strip $(OSTYPE)),cygwin)
+NVCCFLAGS = --compiler-bindir "c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin" -Xcompiler /openmp
+LFLAGS = -L"c:\Program Files\Microsoft SDKs\Windows\v7.1\Lib" -L.
+RPATH =
+LIBXGPU = libxgpu.dll
 else
-NVCC = /usr/local/cuda/bin/nvcc
-NVCCFLAGS = -Xcompiler -fopenmp -Xcompiler -D_REENTRANT 
+NVCCFLAGS = -Xcompiler -fopenmp -Xcompiler -D_REENTRANT -Xcompiler -Wall
+LFLAGS = -L$(CUDA_LIBDIR) -L.
+RPATH = -Xlinker -rpath,'$${ORIGIN}'
+LIBXGPU = libxgpu.so
 endif
 
-NVCCFLAGS += -O3 -arch=sm_20 -Xptxas -abi=no -m32 -I. --ptxas-options=-v -prec-sqrt=false
+NVCCFLAGS += $(DEBUG) -arch=sm_20 -Xptxas -abi=no -I. --ptxas-options=-v -prec-sqrt=false -Xcompiler -fPIC
+NVCCFLAGS += -DTEXTURE_DIM=$(TEXTURE_DIM)
 
 #NVCCFLAGS += -Xptxas -dlcm=cg # disable L1 cache
+
+# Possibly (re-)build xgpu_version.h
+$(shell $(SHELL) gen_xgpu_version.sh)
+
+##########################
+# Sizing variable handlers
+##########################
+
+ifdef NPOL
+NVCCFLAGS += -DNPOL=$(NPOL)
+endif
+
+ifdef NSTATION
+NVCCFLAGS += -DNSTATION=$(NSTATION)
+endif
+
+ifdef NFREQUENCY
+NVCCFLAGS += -DNFREQUENCY=$(NFREQUENCY)
+endif
+
+ifdef NTIME
+NVCCFLAGS += -DNTIME=$(NTIME)
+endif
+
+ifdef NTIMEPIPE
+NVCCFLAGS += -DNTIMEPIPE=$(NTIMEPIPE)
+endif
+
+################################
+# Benchmarking variable handlers
+################################
+
+ifdef CUBE_COUNT_MODE
+NVCCFLAGS += -DCUBE_COUNT_MODE
+CUBE_OBJS = cube/cube.o
+endif
+
+ifdef CUBE_TIME_MODE
+# FIXME? The test seems to fail on the timing run - why is this? - summation is doubled for some reason
+NVCCFLAGS += -DCUBE_TIME_MODE
+CUBE_OBJS = cube/cube.o
+endif
+
+ifdef CUBE_ASYNC_COUNT_MODE
+NVCCFLAGS += -DCUBE_ASYNC_COUNT_MODE
+CUBE_OBJS = cube/cube.o
+endif
+
+ifdef CUBE_ASYNC_TIME_MODE
+NVCCFLAGS += -DCUBE_ASYNC_TIME_MODE
+CUBE_OBJS = cube/cube.o
+endif
 
 # this sets the pipeline to run in an infinite loop - for power measurement
 ifeq ($(strip $(POWER_LOOP)), yes)
 NVCCFLAGS += -DPOWER_LOOP
 endif
 
-all: cuda_correlator
+CUDA_CORRELATOR_OBJS  = cuda_correlator.o
 
-cuda_correlator: cuda_correlator.cu cuda_xengine.cu omp_xengine.cc cpu_util.cc
-	$(NVCC) $(NVCCFLAGS) cuda_correlator.cu cube/cube.c -o cuda_correlator $(LFLAGS)
+XGPUINFO_OBJS  = xgpuinfo.o
 
-count_cuda_correlator: cuda_correlator.cu cuda_xengine.cu omp_xengine.cc cpu_util.cc
-	$(NVCC) $(NVCCFLAGS) cuda_correlator.cu cube/cube.c -DCUBE_COUNT_MODE -o cuda_correlator $(LFLAGS)  
+LIBXGPU_OBJS  = cuda_xengine.o
+LIBXGPU_OBJS += omp_xengine.o
+LIBXGPU_OBJS += cpu_util.o
+LIBXGPU_OBJS += $(CUBE_OBJS)
 
-# FIXME? The test seems to fail on the timing run - why is this? - summation is doubled for some reason
-time_cuda_correlator: cuda_correlator.cu cuda_xengine.cu omp_xengine.cc cpu_util.cc
-	$(NVCC) $(NVCCFLAGS) cuda_correlator.cu cube/cube.c -DCUBE_TIME_MODE -o cuda_correlator $(LFLAGS) 
+# Each object file has a corresponding dependency file
+DEPS = $(OBJS:.o=.d) $(LIBXGPU_OBJS:.o=.d)
 
-async_count_cuda_correlator: cuda_correlator.cu cuda_xengine.cu omp_xengine.cc cpu_util.cc
-	$(NVCC) $(NVCCFLAGS) cuda_correlator.cu cube/cube.c -DCUBE_ASYNC_COUNT_MODE -o cuda_correlator $(LFLAGS) 
+all: cuda_correlator xgpuinfo $(LIBXGPU)
 
-async_time_cuda_correlator: cuda_correlator.cu cuda_xengine.cu omp_xengine.cc cpu_util.cc
-	$(NVCC) $(NVCCFLAGS) cuda_correlator.cu cube/cube.c -DCUBE_ASYNC_TIME_MODE -o cuda_correlator $(LFLAGS) 
+cuda_correlator: $(CUDA_CORRELATOR_OBJS) $(LIBXGPU)
+	$(NVCC) $(NVCCFLAGS) $^ -o $@ $(LFLAGS) $(RPATH) -lxgpu
+
+xgpuinfo: $(XGPUINFO_OBJS) $(LIBXGPU)
+	$(NVCC) $(NVCCFLAGS) $^ -o $@ $(LFLAGS) $(RPATH) -lxgpu
+
+$(LIBXGPU): $(LIBXGPU_OBJS)
+	$(NVCC) $(NVCCFLAGS) $^ -o $@ $(LFLAGS) --shared
+
+# A target to make all object files, but not link them
+objs: $(OBJS) $(LIBXGPU_OBJS)
+
+# Include dependencies after explicit rules (really anywhere after first
+# explicit rule) so that they do not provide default target.
+-include $(DEPS)
+
+# These .{c,cc,cu} -> .o rules will generate dependency files as a side effect
+# of the compilation.  These files are included elsewhere in this Makefile.
+#
+# NB Include dep files using "-include", see
+#    http://make.paulandlesley.org/autodep.html#traditional for more info.
+
+%.o: %.c
+	@$(NVCC) $(NVCCFLAGS) -M -o $*.P $< && \
+	cp $*.P $*.d && \
+	sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
+		  -e '/^$$/ d' -e 's/$$/ :/' < $*.P >> $*.d && \
+	rm -f $*.P
+	$(NVCC) $(NVCCFLAGS) $(CFLAGS) -c -o $@ $<
+
+%.o: %.cu
+	@$(NVCC) $(NVCCFLAGS) -M -o $*.P $< && \
+	cp $*.P $*.d && \
+	sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
+		  -e '/^$$/ d' -e 's/$$/ :/' < $*.P >> $*.d && \
+	rm -f $*.P
+	$(NVCC) $(NVCCFLAGS) $(CFLAGS) -c -o $@ $<
+
+install: xgpuinfo $(LIBXGPU)
+	mkdir -p $(bindir)
+	cp xgpuinfo $(bindir)
+	mkdir -p $(includedir)
+	cp xgpu.h $(includedir)
+	mkdir -p $(libdir)
+	cp $(LIBXGPU) $(libdir)
+
+uninstall:
+	rm -f $(bindir)/xgpuinfo
+	rm -f $(includedir)/xgpu.h
+	rm -f $(libdir)/$(LIBXGPU)
+
+tags:
+	ctags -R .
 
 clean:
-	rm -f ./cuda_correlator
+	rm -f ./cuda_correlator ./libxgpu.so ./xgpuinfo
+	rm -f $(OBJS) $(LIBXGPU_OBJS) cube/cube.o
+	rm -f $(DEPS)
+	rm -f tags
+
+.PHONY : all objs tags clean install uninstall

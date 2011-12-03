@@ -12,26 +12,44 @@
 
  */
 
-#include <cube/cube.h>
+#include <stdio.h>
 
-//int Nfrequency; //this needs to be compile time now with constant memory array
-int Nstation;
+#include "xgpu.h"
+#include "xgpu_info.h"
+#include "xgpu_version.h"
+#include "cube/cube.h"
 
-unsigned long long vecLength;
-unsigned long long vecLengthPipe;
-unsigned long long matLength;
+// Set data types accordingly
+#ifndef FIXED_POINT
+#define COMPLEX_INPUT float2
+#define SCALE 1.0f // no rescale required for FP32
+#else
+#define COMPLEX_INPUT char2 
+#define SCALE 16129.0f // need to rescale result 
+#endif // FIXED_POINT
 
-//memory pointers on the device
-ComplexInput *array_d[2];
-Complex *matrix_d;
-Complex *matrix_real_d;
-Complex *matrix_imag_d;
+// whether we are writing the matrix back to device memory (used for benchmarking)
+static int writeMatrix = 1;
+// this must be enabled for this option to work though, slightly hurts performance
+//#define WRITE_OPTION 
 
-// used for overlapping comms and compute
-cudaStream_t *streams;
+typedef struct XGPUInternalContextStruct {
+  //memory pointers on the device
+  ComplexInput *array_d[2];
+  Complex *matrix_d;
 
-// texture channel descriptor
-cudaChannelFormatDesc channelDesc;
+  // used for overlapping comms and compute
+  cudaStream_t *streams;
+
+  // texture channel descriptor
+  cudaChannelFormatDesc channelDesc;
+
+  // Should we free host input array?
+  unsigned int free_array_h;
+
+  // Should we free host output array?
+  unsigned int free_matrix_h;
+} XGPUInternalContext;
 
 #define TILE_HEIGHT 8
 #define TILE_WIDTH 8
@@ -41,29 +59,31 @@ cudaChannelFormatDesc channelDesc;
 
 #ifndef FIXED_POINT
 // texture declaration for FP32 reads
-texture<float2, 2, cudaReadModeElementType> tex2dfloat2;
+static texture<float2, 1, cudaReadModeElementType> tex1dfloat2;
+static texture<float2, 2, cudaReadModeElementType> tex2dfloat2;
 #else
 // texture declaration for 8-bit fixed point reads
-texture<char2, 2, cudaReadModeNormalizedFloat> tex2dfloat2;
+static texture<char2, 1, cudaReadModeNormalizedFloat> tex1dfloat2;
+static texture<char2, 2, cudaReadModeNormalizedFloat> tex2dfloat2;
 #endif
 
 // array holding indices for which matrix we are doing the output to at a given iteration
 #if (NPULSAR > 0)
-__device__ __constant__ unsigned char tIndex[PIPE_LENGTH*NFREQUENCY];
+static __device__ __constant__ unsigned char tIndex[PIPE_LENGTH*NFREQUENCY];
 #endif
 
 #define checkCudaError() do {                           \
     cudaError_t error = cudaGetLastError();		\
     if (error != cudaSuccess) {				\
-      printf("(CUDA) %s", cudaGetErrorString(error));	\
-      printf(" (" __FILE__ ":%d)\n", __LINE__);		\
-      exit(0);						\
+      fprintf(stderr, "(CUDA) %s", cudaGetErrorString(error));	\
+      fprintf(stderr, " (" __FILE__ ":%d)\n", __LINE__);		\
+      return XGPU_CUDA_ERROR;						\
     }							\
   } while (0)
 
 
 //determine row and column from blockIdx.x
-CUBE_DEVICE(void, findPosition, unsigned int &Col, unsigned int &Row, unsigned int &blockX, unsigned int &blockY) {
+CUBE_DEVICE(static void, findPosition, unsigned int &Col, unsigned int &Row, unsigned int &blockX, unsigned int &blockY) {
   unsigned int k = blockIdx.x;
   blockY = -0.5f + sqrtf(0.25f + 2*k);
   blockX = k - (((blockY+1)*(blockY)) >> 1);
@@ -71,14 +91,14 @@ CUBE_DEVICE(void, findPosition, unsigned int &Col, unsigned int &Row, unsigned i
   Col = (blockX*TILE_WIDTH + threadIdx.x);
 }
 
-__device__ void operator+=( float4 &a, const float4 b ) {
+__device__ static void operator+=( float4 &a, const float4 b ) {
  float4 t = a;
  t.x += b.x; t.y += b.y; t.z += b.z; t.w += b.w;
  a = t;
 }
 
 // device function to write out the matrix elements
-CUBE_DEVICE(void, write2x2, unsigned int &Col, unsigned int &Row, float4 *matrix_real, float4 *matrix_imag, 
+CUBE_DEVICE(static void, write2x2, unsigned int &Col, unsigned int &Row, float4 *matrix_real, float4 *matrix_imag, 
 	    float sum11XXreal, float sum11XXimag, float sum11XYreal, float sum11XYimag,
 	    float sum11YXreal, float sum11YXimag, float sum11YYreal, float sum11YYimag,
 	    float sum12XXreal, float sum12XXimag, float sum12XYreal, float sum12XYimag,
@@ -163,12 +183,31 @@ CUBE_DEVICE(void, write2x2, unsigned int &Col, unsigned int &Row, float4 *matrix
 
 }
 
+// Define TEXTURE_DIM as 1 to use 1D texture (more accurate, costs 1 mult per LOAD)
+// Define TEXTURE_DIM as 2 to use 2D texture (less accurate, saves 1 mult per LOAD)
+#ifndef TEXTURE_DIM
+#define TEXTURE_DIM 1
+#endif
+
+#if TEXTURE_DIM == 1
+// Read in column in first warp as float2, row in second warp (still true for 1D?)
+#define LOAD(s, t)							\
+  {float2 temp = tex1Dfetch(tex1dfloat2, array_index + (t)*NFREQUENCY*Nstation*NPOL);			\
+    CUBE_ADD_BYTES(sizeof(ComplexInput));				\
+    *(input##s##_p) = temp.x;						\
+    *(input##s##_p + 4*TILE_WIDTH) = temp.y;}
+
+#elif TEXTURE_DIM == 2
 // Read in column in first warp as float2, row in second warp
 #define LOAD(s, t)							\
   {float2 temp = tex2D(tex2dfloat2, array_index, t);			\
     CUBE_ADD_BYTES(sizeof(ComplexInput));				\
     *(input##s##_p) = temp.x;						\
     *(input##s##_p + 4*TILE_WIDTH) = temp.y;}
+
+#else
+#error TEXTURE_DIM must be 1 or 2
+#endif
 
 // read in shared data as individual floats to avoid bank conflicts
 
@@ -254,7 +293,7 @@ CUBE_DEVICE(void, write2x2, unsigned int &Col, unsigned int &Row, float4 *matrix
   sum22YYimag += row2Yimag * col2Yreal;					\
   sum22YYimag -= row2Yreal * col2Yimag;}
 
-CUBE_KERNEL(shared2x2float2, float4 *matrix_real, float4 *matrix_imag, const int Nstation, const int write)
+CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, const int Nstation, const int write)
 {
   CUBE_START;
 
@@ -362,74 +401,123 @@ CUBE_KERNEL(shared2x2float2, float4 *matrix_real, float4 *matrix_imag, const int
 #undef LOAD
 #undef TWO_BY_TWO_COMPUTE
 
-// Allocate the memory on the device
-void xInit(ComplexInput **array_h, Complex **matrix_h, int Nstat) {
+static XGPUInfo compiletime_info = {
+  npol:          NPOL,
+  nstation:      NSTATION,
+  nbaseline:     NBASELINE,
+  nfrequency:    NFREQUENCY,
+  ntime:         NTIME,
+  ntimepipe:     NTIME_PIPE,
+#ifdef FIXED_POINT
+  input_type:    XGPU_INT8,
+#else
+  input_type:    XGPU_FLOAT32,
+#endif
+  vecLength:     NFREQUENCY * NTIME * NSTATION * NPOL,
+  vecLengthPipe: NFREQUENCY * NTIME_PIPE * NSTATION * NPOL,
+#if (MATRIX_ORDER == REGISTER_TILE_TRIANGULAR_ORDER)
+  matLength:     NFREQUENCY * ((NSTATION/2+1)*(NSTATION/4)*NPOL*NPOL*4) * (NPULSAR + 1),
+#else
+  // Matrix length is same for REGISTER_TILE_TRIANGULAR_ORDER and TRIANGULAR_ORDER
+  matLength:     NFREQUENCY * ((NSTATION+1)*(NSTATION/2)*NPOL*NPOL) * (NPULSAR + 1),
+#endif
+  matrix_order:  MATRIX_ORDER
+};
+
+// This stringification trick is from "info cpp"
+#define STRINGIFY1(s) #s
+#define STRINGIFY(s) STRINGIFY1(s)
+static const char xgpu_version[] = STRINGIFY(XGPU_VERSION);
+
+const char * xgpuVersionString()
+{
+  return xgpu_version;
+}
+
+// Populate XGPUInfo structure with compile-time parameters.
+void xgpuInfo(XGPUInfo *pcxs)
+{
+  pcxs->npol           = compiletime_info.npol;
+  pcxs->nstation       = compiletime_info.nstation;
+  pcxs->nbaseline      = compiletime_info.nbaseline;
+  pcxs->nfrequency     = compiletime_info.nfrequency;
+  pcxs->ntime          = compiletime_info.ntime;
+  pcxs->ntimepipe      = compiletime_info.ntimepipe;
+  pcxs->input_type     = compiletime_info.input_type;
+  pcxs->vecLength      = compiletime_info.vecLength;
+  pcxs->vecLengthPipe  = compiletime_info.vecLengthPipe;
+  pcxs->matLength      = compiletime_info.matLength;
+  pcxs->matrix_order   = compiletime_info.matrix_order;
+}
+
+// Initialize the XGPU.
+int xgpuInit(XGPUContext *context)
+{
 
   CUBE_INIT();
 
-  Nstation = Nstat;
+  // Allocate internal context
+  XGPUInternalContext *internal = (XGPUInternalContext *)malloc(sizeof(XGPUInternalContext));
+  if(!internal) {
+    // Uh-oh!
+    return XGPU_OUT_OF_MEMORY;
+  }
+  context->internal = internal;
 
-  vecLength = NFREQUENCY * NTIME * Nstation * NPOL;
-  vecLengthPipe = NFREQUENCY * NTIME_PIPE * Nstation * NPOL;
-#if (MATRIX_ORDER == REGISTER_TILE_TRIANGULAR_ORDER)
-  matLength = NFREQUENCY * ((Nstation/2+1)*(Nstation/4)*NPOL*NPOL*4) * (NPULSAR + 1);
-#else
-  matLength = NFREQUENCY * ((Nstation+1)*(Nstation/2)*NPOL*NPOL) * (NPULSAR + 1);
-#endif
+  long long unsigned int vecLength = compiletime_info.vecLength;
+  long long unsigned int vecLengthPipe = compiletime_info.vecLengthPipe;
+  long long unsigned int matLength = compiletime_info.matLength;
 
   //assign the device
   const int device = 0;
-  cudaSetDevice(device);
+  cudaSetDevice(device); // TODO Put device number in XGPU(Internal?)Context
   checkCudaError();
 
-  printf("Host memory allocated: signals = %6.4f GiB, matrix = %6.4f GiB\n", 
-	 (float)(vecLength*sizeof(ComplexInput))/(float)(1<<30), 
-	 (float)(matLength*sizeof(Complex))/(float)(1<<30));
+  if(context->array_h) {
+    // Register caller-allocated host memory with CUDA.
+    // This requires that the caller allocated the memory properly vis-a-vis
+    // the requirements of cudaHostRegister!
+    cudaHostRegister(context->array_h, compiletime_info.vecLength*sizeof(ComplexInput), 0);
+    internal->free_array_h = 0;
+  } else {
+    // allocate host memory
+    cudaMallocHost((void **) &(context->array_h), vecLength*sizeof(ComplexInput));
+    checkCudaError();
+    internal->free_array_h = 1;
+  }
 
-  // allocate host memory
-  cudaMallocHost((void **) array_h, vecLength*sizeof(ComplexInput));
-  checkCudaError();
-  cudaMallocHost((void **) matrix_h, matLength*sizeof(Complex));
-
-  checkCudaError();
+  if(context->matrix_h) {
+    // Register caller-allocated host memory with CUDA.
+    // This requires that the caller allocated the memory properly vis-a-vis
+    // the requirements of cudaHostRegister!
+    cudaHostRegister(context->matrix_h, compiletime_info.vecLength*sizeof(ComplexInput), 0);
+    internal->free_matrix_h = 0;
+  } else {
+    // allocate host memory
+    //cudaMallocHost((void **) &(context->matrix_h), matLength*sizeof(Complex));
+    cudaMallocHost( &(context->matrix_h), matLength*sizeof(Complex));
+    checkCudaError();
+    internal->free_matrix_h = 1;
+  }
 
   //allocate memory on device
-  cudaMalloc((void **) &array_d[0], vecLengthPipe*sizeof(ComplexInput));
-  cudaMalloc((void **) &array_d[1], vecLengthPipe*sizeof(ComplexInput));
-  cudaMalloc((void **) &matrix_d, matLength*sizeof(Complex));
+  cudaMalloc((void **) &(internal->array_d[0]), vecLengthPipe*sizeof(ComplexInput));
+  cudaMalloc((void **) &(internal->array_d[1]), vecLengthPipe*sizeof(ComplexInput));
+  cudaMalloc((void **) &(internal->matrix_d), matLength*sizeof(Complex));
   checkCudaError();
   
-  printf("Device memory allocated: signals = %6.4f GiB, matrix = %6.4f GiB\n", 
-	 (float)(vecLengthPipe*sizeof(ComplexInput))/(float)(1<<30), 
-	 (float)(matLength*sizeof(Complex))/(float)(1<<30));
-
   //clear out any previous values
-  cudaMemset(array_d[0], '0', vecLengthPipe*sizeof(ComplexInput));
-  cudaMemset(array_d[1], '0', vecLengthPipe*sizeof(ComplexInput));
-  cudaMemset(matrix_d, '0', matLength*sizeof(Complex));
+  cudaMemset(internal->array_d[0], '\0', vecLengthPipe*sizeof(ComplexInput));
+  cudaMemset(internal->array_d[1], '\0', vecLengthPipe*sizeof(ComplexInput));
+  cudaMemset(internal->matrix_d, '\0', matLength*sizeof(Complex));
   checkCudaError();
-
-  // set the pointer to the real and imaginary components of the matrix
-  matrix_real_d = matrix_d;
-  matrix_imag_d = matrix_d + matLength/2;
-
-  // check NTIME_PIPE and PIPE_LENGTH are valid
-  if (NTIME_PIPE % 4 != 0) {
-    printf("Error, NTIME_PIPE must be a multiple of 4\n");
-    exit(-1);
-  }
-
-  if (PIPE_LENGTH * NTIME_PIPE != NTIME) {
-    printf("Error, PIPE_LENGTH %llu is not a factor of NTIME %llu\n", PIPE_LENGTH, NTIME);
-    exit(-1);
-  }
 
   // create the streams
-  streams = (cudaStream_t*) malloc(2*sizeof(cudaStream_t));
-  for(int i=0; i<2; i++) cudaStreamCreate(&(streams[i]));
+  internal->streams = (cudaStream_t*) malloc(2*sizeof(cudaStream_t));
+  for(int i=0; i<2; i++) cudaStreamCreate(&(internal->streams[i]));
   checkCudaError();
 
-  channelDesc = cudaCreateChannelDesc<COMPLEX_INPUT>();
+  internal->channelDesc = cudaCreateChannelDesc<COMPLEX_INPUT>();
 
 #if NPULSAR > 0
   unsigned char timeIndex[PIPE_LENGTH*NFREQUENCY];
@@ -444,60 +532,85 @@ void xInit(ComplexInput **array_h, Complex **matrix_h, int Nstat) {
   for (int tf=0; tf<PIPE_LENGTH*NFREQUENCY; tf++) {
     for (int f=0; f<NFREQUENCY; f++) 
       if (timeIndex[t][f] != timeIndex2[t][f]) 
-	printf("Index copy failed: t = %d, f = %d, original = %d, copy = %d\n", 
+	fprintf(stderr, "Index copy failed: t = %d, f = %d, original = %d, copy = %d\n", 
 	       t, f, timeIndex[t][f], timeIndex2[t][f]);
   }
 #endif
-  
-  // check 2-d texture dimensions are ok
+
+  // check whether texture dimensions are ok
   cudaDeviceProp deviceProp;
   cudaGetDeviceProperties(&deviceProp, device);
 
-  printf("\nDevice %d: \"%s\"\n", device, deviceProp.name);
-  printf("  Max Texture Dimension Size (x,y,z)             1D=(%d), 2D=(%d,%d), 3D=(%d,%d,%d)\n",
-	 deviceProp.maxTexture1D, deviceProp.maxTexture2D[0], deviceProp.maxTexture2D[1],
-	 deviceProp.maxTexture3D[0], deviceProp.maxTexture3D[1], deviceProp.maxTexture3D[2]);
-
-  if (NFREQUENCY * Nstation * NPOL > deviceProp.maxTexture2D[0]) {
-    printf("Texture x dimension %llu greater than limit %d\n", 
-	   NFREQUENCY*NSTATION*NPOL, deviceProp.maxTexture2D[0]);
-    exit(0);
+#if TEXTURE_DIM == 2
+  if((NFREQUENCY * NSTATION * NPOL > deviceProp.maxTexture2D[0]) ||
+     (NTIME_PIPE > deviceProp.maxTexture2D[1])) {
+    return XGPU_INSUFFICIENT_TEXTURE_MEMORY;
   }
-
-  if (NTIME_PIPE > deviceProp.maxTexture2D[1]) {
-    printf("Texture y dimension %d greater than limit %d\n", 
-	   NTIME_PIPE, deviceProp.maxTexture2D[1]);
-    exit(0);
+#elif TEXTURE_DIM == 1
+  if (NFREQUENCY * NSTATION * NPOL * NTIME_PIPE > deviceProp.maxTexture1D) {
+    return XGPU_INSUFFICIENT_TEXTURE_MEMORY;
   }
+#endif 
 
+  return XGPU_OK;
 }
 
 
 // Free up the memory on the host and device
-void xFree(ComplexInput *array_h, Complex *matrix_h) {
+void xgpuFree(XGPUContext *context)
+{
+  XGPUInternalContext *internal = (XGPUInternalContext *)context->internal;
 
-  for(int i=0; i<2; i++)
-    cudaStreamDestroy(streams[i]);
+  if(internal) {
+    for(int i=0; i<2; i++)
+      cudaStreamDestroy(internal->streams[i]);
 
-  cudaFreeHost(array_h);
-  cudaFreeHost(matrix_h);
+    if(internal->free_array_h) {
+      cudaFreeHost(context->array_h);
+      context->array_h = NULL;
+    } else {
+      cudaHostUnregister(context->array_h);
+    }
+    if(internal->free_matrix_h) {
+      cudaFreeHost(context->matrix_h);
+      context->matrix_h = NULL;
+    } else {
+      cudaHostUnregister(context->matrix_h);
+    }
 
-  cudaFree(array_d[1]);
-  cudaFree(array_d[0]);
-  cudaFree(matrix_d);
+    cudaFree(internal->array_d[1]);
+    cudaFree(internal->array_d[0]);
+    cudaFree(internal->matrix_d);
+
+    free(internal);
+    context->internal = NULL;
+  }
 
   CUBE_WRITE();
 }
 
-void cudaXengine(Complex *matrix_h, ComplexInput *array_h) {
+int xgpuCudaXengine(XGPUContext *context)
+{
+  XGPUInternalContext *internal = (XGPUInternalContext *)context->internal;
+  if(!internal) {
+    return XGPU_NOT_INITIALIZED;
+  }
 
-  int Nblock = Nstation/min(TILE_HEIGHT,TILE_WIDTH);
+  ComplexInput **array_d = internal->array_d;
+  cudaStream_t *streams = internal->streams;
+  cudaChannelFormatDesc channelDesc = internal->channelDesc;
+
+  // set pointers to the real and imaginary components of the device matrix
+  float4 *matrix_real_d = (float4 *)(internal->matrix_d);
+  float4 *matrix_imag_d = (float4 *)(internal->matrix_d + compiletime_info.matLength/2);
+
+  int Nblock = compiletime_info.nstation/min(TILE_HEIGHT,TILE_WIDTH);
   ComplexInput *array_load;
   ComplexInput *array_compute; 
 
   dim3 dimBlock(TILE_WIDTH,TILE_HEIGHT,1);
   //allocated exactly as many thread blocks as are needed
-  dim3 dimGrid(((Nblock/2+1)*(Nblock/2))/2, NFREQUENCY);
+  dim3 dimGrid(((Nblock/2+1)*(Nblock/2))/2, compiletime_info.nfrequency);
 
   // Create events used to record the completion of the device-host transfer and kernels
   cudaEvent_t copyCompletion[2], kernelCompletion[2];
@@ -510,7 +623,8 @@ void cudaXengine(Complex *matrix_h, ComplexInput *array_h) {
   CUBE_ASYNC_START(ENTIRE_PIPELINE);
 
   // Need to fill pipeline before loop
-  ComplexInput *array_hp = &array_h[0*NTIME_PIPE * NFREQUENCY * Nstation * NPOL];
+  long long unsigned int vecLengthPipe = compiletime_info.vecLengthPipe;
+  ComplexInput *array_hp = &context->array_h[0*vecLengthPipe];
   CUBE_ASYNC_COPY_CALL(array_d[0], array_hp, vecLengthPipe*sizeof(ComplexInput), cudaMemcpyHostToDevice, streams[0]);
   cudaEventRecord(copyCompletion[0], streams[0]); // record the completion of the h2d transfer
   checkCudaError();
@@ -525,16 +639,20 @@ void cudaXengine(Complex *matrix_h, ComplexInput *array_h) {
     array_load = array_d[p%2];
 
     // Kernel Calculation
-    cudaBindTexture2D(0, tex2dfloat2, array_compute, channelDesc, NFREQUENCY*Nstation*NPOL, NTIME_PIPE, 
+#if TEXTURE_DIM == 2
+    cudaBindTexture2D(0, tex2dfloat2, array_compute, channelDesc, NFREQUENCY*NSTATION*NPOL, NTIME_PIPE, 
 		      NFREQUENCY*Nstation*NPOL*sizeof(ComplexInput));
+#else
+    cudaBindTexture(0, tex1dfloat2, array_compute, channelDesc, NFREQUENCY*NSTATION*NPOL*NTIME_PIPE*sizeof(ComplexInput));
+#endif
     cudaStreamWaitEvent(streams[1], copyCompletion[(p+1)%2], 0); // only start the kernel once the h2d transfer is complete
     CUBE_ASYNC_KERNEL_CALL(shared2x2float2, dimGrid, dimBlock, 0, streams[1], 
-			   (float4*)matrix_real_d, (float4*)matrix_imag_d, Nstation, writeMatrix);
+			   matrix_real_d, matrix_imag_d, NSTATION, writeMatrix);
     cudaEventRecord(kernelCompletion[(p+1)%2], streams[1]); // record the completion of the h2d transfer
     checkCudaError();
 
     // Download input data
-    ComplexInput *array_hp = &array_h[p*NTIME_PIPE * NFREQUENCY * Nstation * NPOL];
+    ComplexInput *array_hp = &context->array_h[p*vecLengthPipe];
     cudaStreamWaitEvent(streams[0], kernelCompletion[p%2], 0); // only start the transfer once the kernel has completed
     CUBE_ASYNC_COPY_CALL(array_load, array_hp, vecLengthPipe*sizeof(ComplexInput), cudaMemcpyHostToDevice, streams[0]);
     cudaEventRecord(copyCompletion[p%2], streams[0]); // record the completion of the h2d transfer
@@ -545,15 +663,19 @@ void cudaXengine(Complex *matrix_h, ComplexInput *array_h) {
 
   array_compute = array_d[(PIPE_LENGTH+1)%2];
   // Final kernel calculation
-  cudaBindTexture2D(0, tex2dfloat2, array_compute, channelDesc, NFREQUENCY*Nstation*NPOL, NTIME_PIPE, 
+#if TEXTURE_DIM == 2
+  cudaBindTexture2D(0, tex2dfloat2, array_compute, channelDesc, NFREQUENCY*NSTATION*NPOL, NTIME_PIPE, 
 		    NFREQUENCY*Nstation*NPOL*sizeof(ComplexInput));
+#else
+    cudaBindTexture(0, tex1dfloat2, array_compute, channelDesc, NFREQUENCY*NSTATION*NPOL*NTIME_PIPE*sizeof(ComplexInput));
+#endif
   cudaStreamWaitEvent(streams[1], copyCompletion[(PIPE_LENGTH+1)%2], 0);
-  CUBE_ASYNC_KERNEL_CALL(shared2x2float2, dimGrid, dimBlock, 0, streams[1], (float4*)matrix_real_d, (float4*)matrix_imag_d,
-			 Nstation, writeMatrix);
+  CUBE_ASYNC_KERNEL_CALL(shared2x2float2, dimGrid, dimBlock, 0, streams[1], matrix_real_d, matrix_imag_d,
+			 NSTATION, writeMatrix);
   checkCudaError();
 
   //copy the data back, employing a similar strategy as above
-  CUBE_COPY_CALL(matrix_h, matrix_d, matLength*sizeof(Complex), cudaMemcpyDeviceToHost);
+  CUBE_COPY_CALL(context->matrix_h, internal->matrix_d, compiletime_info.matLength*sizeof(Complex), cudaMemcpyDeviceToHost);
   checkCudaError();
 
   CUBE_ASYNC_END(ENTIRE_PIPELINE);
@@ -563,4 +685,6 @@ void cudaXengine(Complex *matrix_h, ComplexInput *array_h) {
     cudaEventDestroy(kernelCompletion[i]);
   }
   checkCudaError();
+
+  return XGPU_OK;
 }

@@ -132,7 +132,7 @@ extern "C" {
     cudaEventCreate(&end);						\
     cudaEventSynchronize(start);					\
     cudaEventRecord(start, stream);					\
-    for (int i=0; i<CUBE_nCall; i++)					\
+    for (unsigned int i=0; i<CUBE_nCall; i++)				\
       kernel <<< grid, threads, shared, stream >>> ( __VA_ARGS__ );	\
     cudaEventRecord(end, stream);					\
     cudaEventSynchronize(end);						\
@@ -152,7 +152,7 @@ extern "C" {
     cudaEventCreate(&end);						\
     cudaEventSynchronize(start);					\
     cudaEventRecord(start, 0);						\
-    for (int i=0; i<CUBE_nCall; i++)					\
+    for (unsigned int i=0; i<CUBE_nCall; i++)				\
       cudaMemcpy(dst, src, size, direction);				\
     cudaEventRecord(end, 0);						\
     cudaEventSynchronize(end);						\
@@ -173,7 +173,7 @@ extern "C" {
     cudaEventCreate(&end);						\
     cudaEventSynchronize(start);					\
     cudaEventRecord(start, stream);					\
-    for (int i=0; i<CUBE_nCall; i++)					\
+    for (unsigned int i=0; i<CUBE_nCall; i++)				\
       cudaMemcpyAsync(dst, src, size, direction, stream);		\
     cudaEventRecord(end, stream);					\
     cudaEventSynchronize(end);						\
