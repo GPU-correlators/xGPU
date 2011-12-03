@@ -22,7 +22,7 @@ make cuda_correlator CUBE_ASYNC_TIME_MODE=1 OSTYPE=$OSTYPE "$@"
 
 # Rebuild a non-benchmarking version
 make clean
-make cuda_correlator OSTYPE=$OSTYPE "$@"
+make all OSTYPE=$OSTYPE "$@"
 
 # Display results
 more cube_benchmark.log
