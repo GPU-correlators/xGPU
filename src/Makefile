@@ -1,3 +1,7 @@
+# Allow local customizations to build process
+# (usually sizing for a specific project)
+-include Makefile.local
+
 CUDA_LIBDIR ?= /opt/cuda/lib64
 DEBUG ?= -O3
 TEXTURE_DIM ?= 1

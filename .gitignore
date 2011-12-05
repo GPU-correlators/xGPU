@@ -9,3 +9,4 @@ src/cuda_correlator
 src/libxgpu.so
 src/xgpuinfo
 src/xgpu_version.h
+src/Makefile.local
