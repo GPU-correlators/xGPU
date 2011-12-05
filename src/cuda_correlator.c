@@ -20,6 +20,8 @@ int main(int argc, char** argv) {
   int verbose = 0;
   XGPUInfo xgpu_info;
   unsigned int npol, nstation, nfrequency;
+  int xgpu_error = 0;
+  Complex *omp_matrix_h = NULL;
 
   if(argc>1) {
     seed = strtoul(argv[1], NULL, 0);
@@ -50,7 +52,11 @@ int main(int argc, char** argv) {
   XGPUContext context;
   context.array_h = NULL;
   context.matrix_h = NULL;
-  xgpuInit(&context);
+  xgpu_error = xgpuInit(&context);
+  if(xgpu_error) {
+    fprintf(stderr, "xgpuInit returned error code %d\n", xgpu_error);
+    goto cleanup;
+  }
   ComplexInput *array_h = context.array_h; // this is pinned memory
   Complex *cuda_matrix_h = context.matrix_h;
 
@@ -58,21 +64,30 @@ int main(int argc, char** argv) {
   xgpuRandomComplex(array_h, xgpu_info.vecLength);
 
   // ompXengine always uses TRIANGULAR_ORDER
-  int ompMatLength = nfrequency * ((nstation+1)*(nstation/2)*npol*npol);
-  Complex *omp_matrix_h = (Complex *) malloc(ompMatLength*sizeof(Complex));
+  unsigned int ompMatLength = nfrequency * ((nstation+1)*(nstation/2)*npol*npol);
+  omp_matrix_h = (Complex *) malloc(ompMatLength*sizeof(Complex));
+  if(!omp_matrix_h) {
+    fprintf(stderr, "error allocating output buffer for xgpuOmpXengine\n");
+    goto cleanup;
+  }
   printf("Calling CPU X-Engine\n");
 #if (CUBE_MODE == CUBE_DEFAULT)
   xgpuOmpXengine(omp_matrix_h, array_h);
 #endif
 
   printf("Calling GPU X-Engine\n");
-  xgpuCudaXengine(&context);
+  xgpu_error = xgpuCudaXengine(&context);
+  if(xgpu_error) {
+    fprintf(stderr, "xgpuCudaXengine returned error code %d\n", xgpu_error);
+    goto cleanup;
+  }
 
 #if (CUBE_MODE == CUBE_DEFAULT)
   
   xgpuReorderMatrix(cuda_matrix_h);
   xgpuCheckResult(cuda_matrix_h, omp_matrix_h, verbose, array_h);
 
+#if 0
   int fullMatLength = nfrequency * nstation*nstation*npol*npol;
   Complex *full_matrix_h = (Complex *) malloc(fullMatLength*sizeof(Complex));
 
@@ -81,12 +96,14 @@ int main(int argc, char** argv) {
 
   free(full_matrix_h);
 #endif
+#endif
 
+cleanup:
   //free host memory
   free(omp_matrix_h);
 
   // free gpu memory
   xgpuFree(&context);
 
-  return 0;
+  return xgpu_error;
 }
