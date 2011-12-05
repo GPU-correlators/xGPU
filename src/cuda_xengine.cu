@@ -542,14 +542,21 @@ int xgpuInit(XGPUContext *context)
   cudaGetDeviceProperties(&deviceProp, device);
 
 #if TEXTURE_DIM == 2
-  if((NFREQUENCY * NSTATION * NPOL > deviceProp.maxTexture2D[0]) ||
+  if((NFREQUENCY * NSTATION * NPOL * 2 > deviceProp.maxTexture2D[0]) ||
      (NTIME_PIPE > deviceProp.maxTexture2D[1])) {
     return XGPU_INSUFFICIENT_TEXTURE_MEMORY;
   }
 #elif TEXTURE_DIM == 1
-  if (NFREQUENCY * NSTATION * NPOL * NTIME_PIPE > deviceProp.maxTexture1D) {
+#if 0
+  // Surprisingly, this appears not to be a problem with 1D textures.  On a
+  // GeForce GTX 580 (i.e. Fermi device), deviceQuery returns 65536 as
+  // maxTexture1D, yet the default sizes use 10 * 256 * 2 * 100 * 2 == 1024000
+  // bytes of 1D texture without any problems.  Perhaps the value of
+  // maxTexture1D returned by cudaGetDeviceProperties is wrong?
+  if (NFREQUENCY * NSTATION * NPOL * NTIME_PIPE * 2 > deviceProp.maxTexture1D) {
     return XGPU_INSUFFICIENT_TEXTURE_MEMORY;
   }
+#endif
 #endif 
 
   return XGPU_OK;
