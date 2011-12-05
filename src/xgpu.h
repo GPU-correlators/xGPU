@@ -111,6 +111,19 @@ void xgpuInfo(XGPUInfo *pcxs);
 // passed to CudaHostRegister.
 int xgpuInit(XGPUContext *context);
 
+// Reinitialize the XGPU host buffers.
+//
+// If context->array_h is non-zero, the previous input buffer is freed or
+// unregistered (as required) and the new array_h value is passed to
+// CudaRegisterHost.  If context->array_h is zero, the previous input buffer
+// remains in use.
+//
+// If context->matrix_h is non-zero, the previous output buffer is freed or
+// unregistered (as required) and the new matrix_h value is passed to
+// CudaRegisterHost.  If context- matrix_h is zero, the previous output buffer
+// remains in use.
+int xgpuReinit(XGPUContext *context);
+
 void xgpuFree(XGPUContext *context);
 
 int xgpuCudaXengine(XGPUContext *context);

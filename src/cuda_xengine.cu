@@ -44,11 +44,17 @@ typedef struct XGPUInternalContextStruct {
   // texture channel descriptor
   cudaChannelFormatDesc channelDesc;
 
-  // Should we free host input array?
-  unsigned int free_array_h;
+  // Host input array that we allocated and should free
+  ComplexInput * free_array_h;
 
-  // Should we free host output array?
-  unsigned int free_matrix_h;
+  // Host input array that we registered and should unregister
+  ComplexInput * unregister_array_h;
+
+  // Host output array that we allocated and should free
+  Complex * free_matrix_h;
+
+  // Host output array that we registered and should unregister
+  Complex * unregister_matrix_h;
 } XGPUInternalContext;
 
 #define TILE_HEIGHT 8
@@ -478,12 +484,14 @@ int xgpuInit(XGPUContext *context)
     // This requires that the caller allocated the memory properly vis-a-vis
     // the requirements of cudaHostRegister!
     cudaHostRegister(context->array_h, compiletime_info.vecLength*sizeof(ComplexInput), 0);
-    internal->free_array_h = 0;
+    internal->unregister_array_h = context->array_h;
+    internal->free_array_h = NULL;
   } else {
     // allocate host memory
-    cudaMallocHost((void **) &(context->array_h), vecLength*sizeof(ComplexInput));
+    cudaMallocHost(&(context->array_h), vecLength*sizeof(ComplexInput));
+    internal->free_array_h = context->array_h;
+    internal->unregister_array_h = NULL;
     checkCudaError();
-    internal->free_array_h = 1;
   }
 
   if(context->matrix_h) {
@@ -491,13 +499,14 @@ int xgpuInit(XGPUContext *context)
     // This requires that the caller allocated the memory properly vis-a-vis
     // the requirements of cudaHostRegister!
     cudaHostRegister(context->matrix_h, compiletime_info.vecLength*sizeof(ComplexInput), 0);
-    internal->free_matrix_h = 0;
+    internal->unregister_matrix_h = context->matrix_h;
+    internal->free_matrix_h = NULL;
   } else {
     // allocate host memory
-    //cudaMallocHost((void **) &(context->matrix_h), matLength*sizeof(Complex));
-    cudaMallocHost( &(context->matrix_h), matLength*sizeof(Complex));
+    cudaMallocHost(&(context->matrix_h), matLength*sizeof(Complex));
+    internal->free_matrix_h = context->matrix_h;
+    internal->unregister_matrix_h = NULL;
     checkCudaError();
-    internal->free_matrix_h = 1;
   }
 
   //allocate memory on device
@@ -562,6 +571,46 @@ int xgpuInit(XGPUContext *context)
   return XGPU_OK;
 }
 
+// Reinitialize the XGPU host buffers.
+int xgpuReinit(XGPUContext *context)
+{
+  XGPUInternalContext *internal = (XGPUInternalContext *)context->internal;
+  if(!internal) {
+    return XGPU_NOT_INITIALIZED;
+  }
+
+  if(context->array_h) {
+    if(internal->free_array_h) {
+      cudaFreeHost(internal->free_array_h);
+    }
+    if(internal->unregister_array_h) {
+      cudaHostUnregister(internal->unregister_array_h);
+    }
+    // Register caller-allocated host memory with CUDA.
+    // This requires that the caller allocated the memory properly vis-a-vis
+    // the requirements of cudaHostRegister!
+    cudaHostRegister(context->array_h, compiletime_info.vecLength*sizeof(ComplexInput), 0);
+    internal->unregister_array_h = context->array_h;
+    internal->free_array_h = NULL;
+  }
+
+  if(context->matrix_h) {
+    if(internal->free_matrix_h) {
+      cudaFreeHost(internal->free_matrix_h);
+    }
+    if(internal->unregister_matrix_h) {
+      cudaHostUnregister(internal->unregister_matrix_h);
+    }
+    // Register caller-allocated host memory with CUDA.
+    // This requires that the caller allocated the memory properly vis-a-vis
+    // the requirements of cudaHostRegister!
+    cudaHostRegister(context->matrix_h, compiletime_info.vecLength*sizeof(ComplexInput), 0);
+    internal->unregister_matrix_h = context->matrix_h;
+    internal->free_matrix_h = NULL;
+  }
+
+  return XGPU_OK;
+}
 
 // Free up the memory on the host and device
 void xgpuFree(XGPUContext *context)
@@ -573,16 +622,20 @@ void xgpuFree(XGPUContext *context)
       cudaStreamDestroy(internal->streams[i]);
 
     if(internal->free_array_h) {
-      cudaFreeHost(context->array_h);
+      cudaFreeHost(internal->free_array_h);
       context->array_h = NULL;
-    } else {
-      cudaHostUnregister(context->array_h);
+    }
+    if(internal->unregister_array_h) {
+      cudaHostUnregister(internal->unregister_array_h);
+      context->array_h = NULL;
     }
     if(internal->free_matrix_h) {
-      cudaFreeHost(context->matrix_h);
+      cudaFreeHost(internal->free_matrix_h);
       context->matrix_h = NULL;
-    } else {
-      cudaHostUnregister(context->matrix_h);
+    }
+    if(internal->unregister_matrix_h) {
+      cudaHostUnregister(internal->unregister_matrix_h);
+      context->matrix_h = NULL;
     }
 
     cudaFree(internal->array_d[1]);
