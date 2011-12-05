@@ -38,6 +38,11 @@ endif
 
 ifdef NSTATION
 NVCCFLAGS += -DNSTATION=$(NSTATION)
+else
+# Handle common typo
+ifdef NSTATIONS
+NVCCFLAGS += -DNSTATION=$(NSTATIONS)
+endif
 endif
 
 ifdef NFREQUENCY
@@ -48,8 +53,13 @@ ifdef NTIME
 NVCCFLAGS += -DNTIME=$(NTIME)
 endif
 
+ifdef NTIME_PIPE
+NVCCFLAGS += -DNTIME_PIPE=$(NTIME_PIPE)
+else
+# Handle common typo
 ifdef NTIMEPIPE
-NVCCFLAGS += -DNTIMEPIPE=$(NTIMEPIPE)
+NVCCFLAGS += -DNTIME_PIPE=$(NTIMEPIPE)
+endif
 endif
 
 ################################
@@ -82,17 +92,26 @@ ifeq ($(strip $(POWER_LOOP)), yes)
 NVCCFLAGS += -DPOWER_LOOP
 endif
 
+# Handle V=1 for verbose output
+ifneq "$V" "1"
+	VERBOSE=@
+endif
+
 CUDA_CORRELATOR_OBJS  = cuda_correlator.o
 
 XGPUINFO_OBJS  = xgpuinfo.o
 
+# Objects for executables
+BINXGPU_OBJS = $(CUDA_CORRELATOR_OBJS) $(XGPUINFO_OBJS)
+
+# Objects for library
 LIBXGPU_OBJS  = cuda_xengine.o
 LIBXGPU_OBJS += omp_xengine.o
 LIBXGPU_OBJS += cpu_util.o
 LIBXGPU_OBJS += $(CUBE_OBJS)
 
 # Each object file has a corresponding dependency file
-DEPS = $(OBJS:.o=.d) $(LIBXGPU_OBJS:.o=.d)
+DEPS = $(BINXGPU_OBJS:.o=.d) $(LIBXGPU_OBJS:.o=.d)
 
 all: cuda_correlator xgpuinfo $(LIBXGPU)
 
@@ -106,7 +125,7 @@ $(LIBXGPU): $(LIBXGPU_OBJS)
 	$(NVCC) $(NVCCFLAGS) $^ -o $@ $(LFLAGS) --shared
 
 # A target to make all object files, but not link them
-objs: $(OBJS) $(LIBXGPU_OBJS)
+objs: $(BINXGPU_OBJS) $(LIBXGPU_OBJS)
 
 # Include dependencies after explicit rules (really anywhere after first
 # explicit rule) so that they do not provide default target.
@@ -119,7 +138,7 @@ objs: $(OBJS) $(LIBXGPU_OBJS)
 #    http://make.paulandlesley.org/autodep.html#traditional for more info.
 
 %.o: %.c
-	@$(NVCC) $(NVCCFLAGS) -M -o $*.P $< && \
+	$(VERBOSE)$(NVCC) $(NVCCFLAGS) -M -o $*.P $< && \
 	cp $*.P $*.d && \
 	sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
 		  -e '/^$$/ d' -e 's/$$/ :/' < $*.P >> $*.d && \
@@ -127,7 +146,7 @@ objs: $(OBJS) $(LIBXGPU_OBJS)
 	$(NVCC) $(NVCCFLAGS) $(CFLAGS) -c -o $@ $<
 
 %.o: %.cu
-	@$(NVCC) $(NVCCFLAGS) -M -o $*.P $< && \
+	$(VERBOSE)$(NVCC) $(NVCCFLAGS) -M -o $*.P $< && \
 	cp $*.P $*.d && \
 	sed -e 's/#.*//' -e 's/^[^:]*: *//' -e 's/ *\\$$//' \
 		  -e '/^$$/ d' -e 's/$$/ :/' < $*.P >> $*.d && \
@@ -151,8 +170,8 @@ tags:
 	ctags -R .
 
 clean:
-	rm -f ./cuda_correlator ./libxgpu.so ./xgpuinfo
-	rm -f $(OBJS) $(LIBXGPU_OBJS) cube/cube.o
+	rm -f cuda_correlator libxgpu.so xgpuinfo
+	rm -f $(BINXGPU_OBJS) $(LIBXGPU_OBJS) cube/cube.o
 	rm -f $(DEPS)
 	rm -f tags
 
