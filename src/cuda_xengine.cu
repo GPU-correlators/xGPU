@@ -672,7 +672,7 @@ void xgpuFree(XGPUContext *context)
   CUBE_WRITE();
 }
 
-int xgpuCudaXengine(XGPUContext *context)
+int xgpuCudaXengine(XGPUContext *context, int doDump)
 {
   XGPUInternalContext *internal = (XGPUInternalContext *)context->internal;
   if(!internal) {
@@ -696,6 +696,7 @@ int xgpuCudaXengine(XGPUContext *context)
   dim3 dimGrid(((Nblock/2+1)*(Nblock/2))/2, compiletime_info.nfrequency);
 
   // Create events used to record the completion of the device-host transfer and kernels
+  // TODO Store in XGPUInternalContext and move to xInit()?
   cudaEvent_t copyCompletion[2], kernelCompletion[2];
   for (int i=0; i<2; i++) {
     cudaEventCreate(&kernelCompletion[i]);
@@ -757,9 +758,11 @@ int xgpuCudaXengine(XGPUContext *context)
 			 NSTATION, writeMatrix);
   checkCudaError();
 
-  //copy the data back, employing a similar strategy as above
-  CUBE_COPY_CALL(context->matrix_h, internal->matrix_d, compiletime_info.matLength*sizeof(Complex), cudaMemcpyDeviceToHost);
-  checkCudaError();
+  if(doDump) {
+    //copy the data back, employing a similar strategy as above
+    CUBE_COPY_CALL(context->matrix_h, internal->matrix_d, compiletime_info.matLength*sizeof(Complex), cudaMemcpyDeviceToHost);
+    checkCudaError();
+  }
 
   CUBE_ASYNC_END(ENTIRE_PIPELINE);
 

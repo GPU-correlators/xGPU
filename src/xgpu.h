@@ -132,7 +132,8 @@ int xgpuReinit(XGPUContext *context);
 
 void xgpuFree(XGPUContext *context);
 
-int xgpuCudaXengine(XGPUContext *context);
+// Perform correlation.  If doDump is non-zero, copy output data back to host.
+int xgpuCudaXengine(XGPUContext *context, int doDump);
 
 // Functions in cpu_util.cc
 
