@@ -457,8 +457,11 @@ void xgpuInfo(XGPUInfo *pcxs)
 }
 
 // Initialize the XGPU.
+//
+// TODO Cleanup as needed if returning due to error
 int xgpuInit(XGPUContext *context)
 {
+  int error = XGPU_OK;
 
   CUBE_INIT();
 
@@ -518,8 +521,13 @@ int xgpuInit(XGPUContext *context)
   //clear out any previous values
   cudaMemset(internal->array_d[0], '\0', vecLengthPipe*sizeof(ComplexInput));
   cudaMemset(internal->array_d[1], '\0', vecLengthPipe*sizeof(ComplexInput));
-  cudaMemset(internal->matrix_d, '\0', matLength*sizeof(Complex));
   checkCudaError();
+
+  // Clear device integration bufer
+  error = xgpuClearDeviceIntegrationBuffer(context);
+  if(error != XGPU_OK) {
+    return error;
+  }
 
   // create the streams
   internal->streams = (cudaStream_t*) malloc(2*sizeof(cudaStream_t));
@@ -568,6 +576,21 @@ int xgpuInit(XGPUContext *context)
 #endif
 #endif 
 
+  return XGPU_OK;
+}
+
+// Clear the device integration buffer
+int xgpuClearDeviceIntegrationBuffer(XGPUContext *context)
+{
+  long long unsigned int matLength = compiletime_info.matLength;
+
+  XGPUInternalContext *internal = (XGPUInternalContext *)context->internal;
+  if(!internal) {
+    return XGPU_NOT_INITIALIZED;
+  }
+
+  cudaMemset(internal->matrix_d, '\0', matLength*sizeof(Complex));
+  checkCudaError();
   return XGPU_OK;
 }
 

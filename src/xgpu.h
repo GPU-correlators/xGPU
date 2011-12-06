@@ -111,6 +111,12 @@ void xgpuInfo(XGPUInfo *pcxs);
 // passed to CudaHostRegister.
 int xgpuInit(XGPUContext *context);
 
+// Clear the device integration buffer
+//
+// Sets the device integration buffer to all zeros, effectively starting a new
+// integration.
+int xgpuClearDeviceIntegrationBuffer(XGPUContext *context);
+
 // Reinitialize the XGPU host buffers.
 //
 // If context->array_h is non-zero, the previous input buffer is freed or
