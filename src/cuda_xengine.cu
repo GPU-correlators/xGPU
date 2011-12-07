@@ -486,7 +486,7 @@ int xgpuInit(XGPUContext *context)
     // Register caller-allocated host memory with CUDA.
     // This requires that the caller allocated the memory properly vis-a-vis
     // the requirements of cudaHostRegister!
-    cudaHostRegister(context->array_h, compiletime_info.vecLength*sizeof(ComplexInput), 0);
+    cudaHostRegister(context->array_h, vecLength*sizeof(ComplexInput), 0);
     internal->unregister_array_h = context->array_h;
     internal->free_array_h = NULL;
   } else {
@@ -501,7 +501,7 @@ int xgpuInit(XGPUContext *context)
     // Register caller-allocated host memory with CUDA.
     // This requires that the caller allocated the memory properly vis-a-vis
     // the requirements of cudaHostRegister!
-    cudaHostRegister(context->matrix_h, compiletime_info.vecLength*sizeof(ComplexInput), 0);
+    cudaHostRegister(context->matrix_h, matLength*sizeof(Complex), 0);
     internal->unregister_matrix_h = context->matrix_h;
     internal->free_matrix_h = NULL;
   } else {
