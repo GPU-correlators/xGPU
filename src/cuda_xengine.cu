@@ -594,42 +594,67 @@ int xgpuClearDeviceIntegrationBuffer(XGPUContext *context)
   return XGPU_OK;
 }
 
-// Reinitialize the XGPU host buffers.
-int xgpuReinit(XGPUContext *context)
+// Specify a new host input buffer.
+int xgpuSetHostInputBuffer(XGPUContext *context)
 {
   XGPUInternalContext *internal = (XGPUInternalContext *)context->internal;
   if(!internal) {
     return XGPU_NOT_INITIALIZED;
   }
 
+  if(internal->free_array_h) {
+    cudaFreeHost(internal->free_array_h);
+  }
+  if(internal->unregister_array_h) {
+    cudaHostUnregister(internal->unregister_array_h);
+  }
+
   if(context->array_h) {
-    if(internal->free_array_h) {
-      cudaFreeHost(internal->free_array_h);
-    }
-    if(internal->unregister_array_h) {
-      cudaHostUnregister(internal->unregister_array_h);
-    }
     // Register caller-allocated host memory with CUDA.
     // This requires that the caller allocated the memory properly vis-a-vis
     // the requirements of cudaHostRegister!
     cudaHostRegister(context->array_h, compiletime_info.vecLength*sizeof(ComplexInput), 0);
     internal->unregister_array_h = context->array_h;
     internal->free_array_h = NULL;
+  } else {
+    // allocate host memory
+    cudaMallocHost(&(context->array_h), compiletime_info.vecLength*sizeof(ComplexInput));
+    internal->free_array_h = context->array_h;
+    internal->unregister_array_h = NULL;
+    checkCudaError();
+  }
+
+  return XGPU_OK;
+}
+
+// Specify a new host output buffer.
+int xgpuSetHostOutputBuffer(XGPUContext *context)
+{
+  XGPUInternalContext *internal = (XGPUInternalContext *)context->internal;
+  if(!internal) {
+    return XGPU_NOT_INITIALIZED;
+  }
+
+  if(internal->free_matrix_h) {
+    cudaFreeHost(internal->free_matrix_h);
+  }
+  if(internal->unregister_matrix_h) {
+    cudaHostUnregister(internal->unregister_matrix_h);
   }
 
   if(context->matrix_h) {
-    if(internal->free_matrix_h) {
-      cudaFreeHost(internal->free_matrix_h);
-    }
-    if(internal->unregister_matrix_h) {
-      cudaHostUnregister(internal->unregister_matrix_h);
-    }
     // Register caller-allocated host memory with CUDA.
     // This requires that the caller allocated the memory properly vis-a-vis
     // the requirements of cudaHostRegister!
-    cudaHostRegister(context->matrix_h, compiletime_info.vecLength*sizeof(ComplexInput), 0);
+    cudaHostRegister(context->matrix_h, compiletime_info.matLength*sizeof(Complex), 0);
     internal->unregister_matrix_h = context->matrix_h;
     internal->free_matrix_h = NULL;
+  } else {
+    // allocate host memory
+    cudaMallocHost(&(context->matrix_h), compiletime_info.matLength*sizeof(Complex));
+    internal->free_matrix_h = context->matrix_h;
+    internal->unregister_matrix_h = NULL;
+    checkCudaError();
   }
 
   return XGPU_OK;

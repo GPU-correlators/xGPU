@@ -103,7 +103,7 @@ void xgpuInfo(XGPUInfo *pcxs);
 // registered with the CUDA runtime via CudaHostRegister().
 //
 // If context->array_h is zero, an array of ComplexInput elements is allocated
-// (of the appropriate size) via CudaMallocHost, otherwise pcontext->array_h is
+// (of the appropriate size) via CudaMallocHost, otherwise context->array_h is
 // passed to CudaHostRegister.
 //
 // If context->matrix_h is zero, an array of Complex elements is allocated (of
@@ -117,18 +117,19 @@ int xgpuInit(XGPUContext *context);
 // integration.
 int xgpuClearDeviceIntegrationBuffer(XGPUContext *context);
 
-// Reinitialize the XGPU host buffers.
+// Specify a new host input buffer.
 //
-// If context->array_h is non-zero, the previous input buffer is freed or
-// unregistered (as required) and the new array_h value is passed to
-// CudaRegisterHost.  If context->array_h is zero, the previous input buffer
-// remains in use.
+// The previous host input buffer is freed or unregistered (as required) and
+// the value in context->array_h is used to specify the new one using the same
+// semantics for this field as xgpuInit.
+int xgpuSetHostInputBuffer(XGPUContext *context);
+
+// Specify a new host output buffer.
 //
-// If context->matrix_h is non-zero, the previous output buffer is freed or
-// unregistered (as required) and the new matrix_h value is passed to
-// CudaRegisterHost.  If context- matrix_h is zero, the previous output buffer
-// remains in use.
-int xgpuReinit(XGPUContext *context);
+// The previous host output buffer is freed or unregistered (as required) and
+// the value in context->matrix_h is used to specify the new one using the same
+// semantics for this field as xgpuInit.
+int xgpuSetHostOutputBuffer(XGPUContext *context);
 
 void xgpuFree(XGPUContext *context);
 
