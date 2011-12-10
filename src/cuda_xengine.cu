@@ -13,6 +13,7 @@
  */
 
 #include <stdio.h>
+#include <unistd.h>
 
 #include "xgpu.h"
 #include "xgpu_info.h"
@@ -32,6 +33,9 @@
 static int writeMatrix = 1;
 // this must be enabled for this option to work though, slightly hurts performance
 //#define WRITE_OPTION 
+
+// System page size (used for rounding size passed to cudaHostRegister)
+static long page_size = sysconf(_SC_PAGE_SIZE);
 
 typedef struct XGPUInternalContextStruct {
   //memory pointers on the device
@@ -473,7 +477,6 @@ int xgpuInit(XGPUContext *context)
   }
   context->internal = internal;
 
-  long long unsigned int vecLength = compiletime_info.vecLength;
   long long unsigned int vecLengthPipe = compiletime_info.vecLengthPipe;
   long long unsigned int matLength = compiletime_info.matLength;
 
@@ -482,35 +485,15 @@ int xgpuInit(XGPUContext *context)
   cudaSetDevice(device); // TODO Put device number in XGPU(Internal?)Context
   checkCudaError();
 
-  if(context->array_h) {
-    // Register caller-allocated host memory with CUDA.
-    // This requires that the caller allocated the memory properly vis-a-vis
-    // the requirements of cudaHostRegister!
-    cudaHostRegister(context->array_h, vecLength*sizeof(ComplexInput), 0);
-    internal->unregister_array_h = context->array_h;
-    internal->free_array_h = NULL;
-  } else {
-    // allocate host memory
-    cudaMallocHost(&(context->array_h), vecLength*sizeof(ComplexInput));
-    internal->free_array_h = context->array_h;
-    internal->unregister_array_h = NULL;
-    checkCudaError();
-  }
+  // Setup input buffer
+  internal->unregister_array_h = NULL;
+  internal->free_array_h = NULL;
+  xgpuSetHostInputBuffer(context);
 
-  if(context->matrix_h) {
-    // Register caller-allocated host memory with CUDA.
-    // This requires that the caller allocated the memory properly vis-a-vis
-    // the requirements of cudaHostRegister!
-    cudaHostRegister(context->matrix_h, matLength*sizeof(Complex), 0);
-    internal->unregister_matrix_h = context->matrix_h;
-    internal->free_matrix_h = NULL;
-  } else {
-    // allocate host memory
-    cudaMallocHost(&(context->matrix_h), matLength*sizeof(Complex));
-    internal->free_matrix_h = context->matrix_h;
-    internal->unregister_matrix_h = NULL;
-    checkCudaError();
-  }
+  // Setup output buffer
+  internal->unregister_matrix_h = NULL;
+  internal->free_matrix_h = NULL;
+  xgpuSetHostOutputBuffer(context);
 
   //allocate memory on device
   cudaMalloc((void **) &(internal->array_d[0]), vecLengthPipe*sizeof(ComplexInput));
@@ -613,9 +596,15 @@ int xgpuSetHostInputBuffer(XGPUContext *context)
     // Register caller-allocated host memory with CUDA.
     // This requires that the caller allocated the memory properly vis-a-vis
     // the requirements of cudaHostRegister!
-    cudaHostRegister(context->array_h, compiletime_info.vecLength*sizeof(ComplexInput), 0);
+    size_t length = compiletime_info.vecLength*sizeof(ComplexInput);
+    // Round length up to next multiple of page size
+    length = (length+page_size-1) / page_size * page_size;
+    fprintf(stderr, "context->array_h = %p\n", context->array_h);
+    fprintf(stderr, "length = %lx\n", length);
+    cudaHostRegister(context->array_h, length, 0);
     internal->unregister_array_h = context->array_h;
     internal->free_array_h = NULL;
+    checkCudaError();
   } else {
     // allocate host memory
     cudaMallocHost(&(context->array_h), compiletime_info.vecLength*sizeof(ComplexInput));
@@ -646,9 +635,15 @@ int xgpuSetHostOutputBuffer(XGPUContext *context)
     // Register caller-allocated host memory with CUDA.
     // This requires that the caller allocated the memory properly vis-a-vis
     // the requirements of cudaHostRegister!
-    cudaHostRegister(context->matrix_h, compiletime_info.matLength*sizeof(Complex), 0);
+    size_t length = compiletime_info.matLength*sizeof(Complex);
+    // Round length up to next multiple of page size
+    length = (length+page_size-1) / page_size * page_size;
+    fprintf(stderr, "context->matrix_h = %p\n", context->matrix_h);
+    fprintf(stderr, "length = %lx\n", length);
+    cudaHostRegister(context->matrix_h, length, 0);
     internal->unregister_matrix_h = context->matrix_h;
     internal->free_matrix_h = NULL;
+    checkCudaError();
   } else {
     // allocate host memory
     cudaMallocHost(&(context->matrix_h), compiletime_info.matLength*sizeof(Complex));
