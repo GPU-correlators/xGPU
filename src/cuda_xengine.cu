@@ -606,8 +606,10 @@ int xgpuSetHostInputBuffer(XGPUContext *context)
     length += (ptr_in - ptr_aligned);
     // Round length up to next multiple of page size
     length = (length+page_size-1) / page_size * page_size;
+#ifdef VERBOSE
     fprintf(stderr, "page aligned context->array_h = %p\n", ptr_aligned);
     fprintf(stderr, "length = %lx\n", length);
+#endif
     cudaHostRegister((void *)ptr_aligned, length, 0);
     internal->unregister_array_h = (ComplexInput *)ptr_aligned;
     internal->free_array_h = NULL;
@@ -651,8 +653,10 @@ int xgpuSetHostOutputBuffer(XGPUContext *context)
     length += (ptr_in - ptr_aligned);
     // Round length up to next multiple of page size
     length = (length+page_size-1) / page_size * page_size;
+#ifdef VERBOSE
     fprintf(stderr, "page aligned context->matrix_h = %p\n", ptr_aligned);
     fprintf(stderr, "length = %lx\n", length);
+#endif
     cudaHostRegister((void *)ptr_aligned, length, 0);
     internal->unregister_matrix_h = (Complex *)ptr_aligned;
     internal->free_matrix_h = NULL;
