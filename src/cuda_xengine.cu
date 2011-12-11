@@ -14,6 +14,7 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <stdint.h>
 
 #include "xgpu.h"
 #include "xgpu_info.h"
@@ -488,11 +489,13 @@ int xgpuInit(XGPUContext *context)
   // Setup input buffer
   internal->unregister_array_h = NULL;
   internal->free_array_h = NULL;
+  // TODO error check
   xgpuSetHostInputBuffer(context);
 
   // Setup output buffer
   internal->unregister_matrix_h = NULL;
   internal->free_matrix_h = NULL;
+  // TODO error check
   xgpuSetHostOutputBuffer(context);
 
   //allocate memory on device
@@ -594,15 +597,19 @@ int xgpuSetHostInputBuffer(XGPUContext *context)
 
   if(context->array_h) {
     // Register caller-allocated host memory with CUDA.
-    // This requires that the caller allocated the memory properly vis-a-vis
-    // the requirements of cudaHostRegister!
+    // Round address down to nearest page_size boundary
+    uintptr_t ptr_in = (uintptr_t)context->array_h;
+    uintptr_t ptr_aligned = ptr_in - (ptr_in % page_size);
+    // Compute length starting with compile time requirement
     size_t length = compiletime_info.vecLength*sizeof(ComplexInput);
+    // Add in any rounding that was done to the input pointer
+    length += (ptr_in - ptr_aligned);
     // Round length up to next multiple of page size
     length = (length+page_size-1) / page_size * page_size;
-    fprintf(stderr, "context->array_h = %p\n", context->array_h);
+    fprintf(stderr, "page aligned context->array_h = %p\n", ptr_aligned);
     fprintf(stderr, "length = %lx\n", length);
-    cudaHostRegister(context->array_h, length, 0);
-    internal->unregister_array_h = context->array_h;
+    cudaHostRegister((void *)ptr_aligned, length, 0);
+    internal->unregister_array_h = (ComplexInput *)ptr_aligned;
     internal->free_array_h = NULL;
     checkCudaError();
   } else {
@@ -635,13 +642,19 @@ int xgpuSetHostOutputBuffer(XGPUContext *context)
     // Register caller-allocated host memory with CUDA.
     // This requires that the caller allocated the memory properly vis-a-vis
     // the requirements of cudaHostRegister!
+    // Round address down to nearest page_size boundary
+    uintptr_t ptr_in = (uintptr_t)context->matrix_h;
+    uintptr_t ptr_aligned = ptr_in - (ptr_in % page_size);
+    // Compute length starting with compile time requirement
     size_t length = compiletime_info.matLength*sizeof(Complex);
+    // Add in any rounding that was done to the input pointer
+    length += (ptr_in - ptr_aligned);
     // Round length up to next multiple of page size
     length = (length+page_size-1) / page_size * page_size;
-    fprintf(stderr, "context->matrix_h = %p\n", context->matrix_h);
+    fprintf(stderr, "page aligned context->matrix_h = %p\n", ptr_aligned);
     fprintf(stderr, "length = %lx\n", length);
-    cudaHostRegister(context->matrix_h, length, 0);
-    internal->unregister_matrix_h = context->matrix_h;
+    cudaHostRegister((void *)ptr_aligned, length, 0);
+    internal->unregister_matrix_h = (Complex *)ptr_aligned;
     internal->free_matrix_h = NULL;
     checkCudaError();
   } else {
