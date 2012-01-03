@@ -1,5 +1,5 @@
-#ifndef XGPU_SIZES_H
-#define XGPU_SIZES_H
+#ifndef XGPU_INFO_H
+#define XGPU_INFO_H
 
 #include "xgpu.h" // For MATRIX_ORDER_XXX macros
 
@@ -67,4 +67,4 @@
 #define MATRIX_ORDER REGISTER_TILE_TRIANGULAR_ORDER
 #endif
 
-#endif // XGPU_SIZES_H
+#endif // XGPU_INFO_H
