@@ -750,7 +750,7 @@ int xgpuCudaXengine(XGPUContext *context, int doDump)
     // Kernel Calculation
 #if TEXTURE_DIM == 2
     cudaBindTexture2D(0, tex2dfloat2, array_compute, channelDesc, NFREQUENCY*NSTATION*NPOL, NTIME_PIPE, 
-		      NFREQUENCY*Nstation*NPOL*sizeof(ComplexInput));
+		      NFREQUENCY*NSTATION*NPOL*sizeof(ComplexInput));
 #else
     cudaBindTexture(0, tex1dfloat2, array_compute, channelDesc, NFREQUENCY*NSTATION*NPOL*NTIME_PIPE*sizeof(ComplexInput));
 #endif
@@ -774,7 +774,7 @@ int xgpuCudaXengine(XGPUContext *context, int doDump)
   // Final kernel calculation
 #if TEXTURE_DIM == 2
   cudaBindTexture2D(0, tex2dfloat2, array_compute, channelDesc, NFREQUENCY*NSTATION*NPOL, NTIME_PIPE, 
-		    NFREQUENCY*Nstation*NPOL*sizeof(ComplexInput));
+		    NFREQUENCY*NSTATION*NPOL*sizeof(ComplexInput));
 #else
     cudaBindTexture(0, tex1dfloat2, array_compute, channelDesc, NFREQUENCY*NSTATION*NPOL*NTIME_PIPE*sizeof(ComplexInput));
 #endif
