@@ -63,6 +63,8 @@ typedef struct XGPUInfoStruct {
   long long unsigned int vecLengthPipe;
   // Number of Complex elements in output vector
   long long unsigned int matLength;
+  // Number of Complex elements in "triangular order" output vector
+  long long unsigned int triLength;
   // Output matrix order
   unsigned int matrix_order;
 } XGPUInfo;

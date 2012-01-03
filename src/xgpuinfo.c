@@ -29,14 +29,17 @@ int main(int argc, char** argv)
     default: printf("<unknown type code: %d>\n", xgpu_info.input_type);
   }
 
-  printf("Number of ComplexInput elements in input vector: %llu\n",
+  printf("Number of ComplexInput elements in GPU input vector: %llu\n",
       xgpu_info.vecLength);
 
   printf("Number of ComplexInput elements per transfer to GPU: %llu\n",
       xgpu_info.vecLengthPipe);
 
-  printf("Number of Complex elements in output vector: %llu\n",
+  printf("Number of Complex elements in GPU output vector: %llu\n",
       xgpu_info.matLength);
+
+  printf("Number of Complex elements in reordered output vector: %llu\n",
+      xgpu_info.triLength);
 
   printf("Output matrix order: ");
   switch(xgpu_info.matrix_order) {
