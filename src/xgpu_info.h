@@ -67,4 +67,9 @@
 #define MATRIX_ORDER REGISTER_TILE_TRIANGULAR_ORDER
 #endif
 
+// Set the number bytes transferred per shared memory transaction
+#ifndef SHARED_ATOMIC_SIZE
+#define SHARED_ATOMIC_SIZE 4
+#endif
+
 #endif // XGPU_SIZES_H

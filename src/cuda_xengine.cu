@@ -1,5 +1,4 @@
 /*
-
   Simple cross-product, outputs in correct triangular form.
 
   - Coalescing memory access in all reads
@@ -9,7 +8,6 @@
 
   On a GTX 480 with >= 512 tiles this kernel achieve in excess of a
   teraflop.
-
  */
 
 #include <stdio.h>
@@ -189,115 +187,14 @@ CUBE_DEVICE(static void, write2x2, unsigned int &Col, unsigned int &Row, float4 
 
 }
 
-// Define TEXTURE_DIM as 1 to use 1D texture (more accurate, costs 1 mult per LOAD)
-// Define TEXTURE_DIM as 2 to use 2D texture (less accurate, saves 1 mult per LOAD)
-#ifndef TEXTURE_DIM
-#define TEXTURE_DIM 1
-#endif
-
-#if TEXTURE_DIM == 1
-// Read in column in first warp as float2, row in second warp (still true for 1D?)
-#define LOAD(s, t)							\
-  {float2 temp = tex1Dfetch(tex1dfloat2, array_index + (t)*NFREQUENCY*Nstation*NPOL);			\
-    CUBE_ADD_BYTES(sizeof(ComplexInput));				\
-    *(input##s##_p) = temp.x;						\
-    *(input##s##_p + 4*TILE_WIDTH) = temp.y;}
-
-#elif TEXTURE_DIM == 2
-// Read in column in first warp as float2, row in second warp
-#define LOAD(s, t)							\
-  {float2 temp = tex2D(tex2dfloat2, array_index, t);			\
-    CUBE_ADD_BYTES(sizeof(ComplexInput));				\
-    *(input##s##_p) = temp.x;						\
-    *(input##s##_p + 4*TILE_WIDTH) = temp.y;}
-
+// Use the appropriate shared memory load / store routines according to the atomic size
+#if SHARED_ATOMIC_SIZE == 4
+#include<shared_transfer_4.cuh>
+#elif SHARED_ATOMIC_SIZE == 8
+#include<shared_transfer_8.cuh>
 #else
-#error TEXTURE_DIM must be 1 or 2
+#error SHARED_ATOMIC_SIZE must be 4 or 8
 #endif
-
-// read in shared data as individual floats to avoid bank conflicts
-
-#define TWO_BY_TWO_COMPUTE(s)						\
-  {float col1Xreal = input[s][4*tx];					\
-  float col1Ximag = input[s][4*tx + 4*TILE_WIDTH];			\
-  float col1Yreal = input[s][4*tx + 1];					\
-  float col1Yimag = input[s][4*tx + 1 + 4*TILE_WIDTH];			\
-  float col2Xreal = input[s][4*tx + 2];					\
-  float col2Ximag = input[s][4*tx + 2 + 4*TILE_WIDTH];			\
-  float col2Yreal = input[s][4*tx + 3];					\
-  float col2Yimag = input[s][4*tx + 3 + 4*TILE_WIDTH];			\
-  float row1Xreal = input[s][4*ty + 8*TILE_WIDTH];			\
-  float row1Ximag = input[s][4*ty + 4*TILE_HEIGHT + 8*TILE_WIDTH];	\
-  float row1Yreal = input[s][4*ty + 1 + 8*TILE_WIDTH];			\
-  float row1Yimag = input[s][4*ty + 1 + 4*TILE_HEIGHT + 8*TILE_WIDTH];	\
-  float row2Xreal = input[s][4*ty + 2 + 8*TILE_WIDTH];			\
-  float row2Ximag = input[s][4*ty + 2 + 4*TILE_HEIGHT + 8*TILE_WIDTH];	\
-  float row2Yreal = input[s][4*ty + 3 + 8*TILE_WIDTH];			\
-  float row2Yimag = input[s][4*ty + 3 + 4*TILE_HEIGHT + 8*TILE_WIDTH];	\
-  sum11XXreal += row1Xreal * col1Xreal;					\
-  sum11XXreal += row1Ximag * col1Ximag;					\
-  sum11XXimag += row1Ximag * col1Xreal;					\
-  sum11XXimag -= row1Xreal * col1Ximag;					\
-  sum11XYreal += row1Xreal * col1Yreal;					\
-  sum11XYreal += row1Ximag * col1Yimag;					\
-  sum11XYimag += row1Ximag * col1Yreal;					\
-  sum11XYimag -= row1Xreal * col1Yimag;					\
-  sum11YXreal += row1Yreal * col1Xreal;					\
-  sum11YXreal += row1Yimag * col1Ximag;					\
-  sum11YXimag += row1Yimag * col1Xreal;					\
-  sum11YXimag -= row1Yreal * col1Ximag;					\
-  sum11YYreal += row1Yreal * col1Yreal;					\
-  sum11YYreal += row1Yimag * col1Yimag;					\
-  sum11YYimag += row1Yimag * col1Yreal;					\
-  sum11YYimag -= row1Yreal * col1Yimag;					\
-  sum12XXreal += row1Xreal * col2Xreal;					\
-  sum12XXreal += row1Ximag * col2Ximag;					\
-  sum12XXimag += row1Ximag * col2Xreal;					\
-  sum12XXimag -= row1Xreal * col2Ximag;					\
-  sum12XYreal += row1Xreal * col2Yreal;					\
-  sum12XYreal += row1Ximag * col2Yimag;					\
-  sum12XYimag += row1Ximag * col2Yreal;					\
-  sum12XYimag -= row1Xreal * col2Yimag;					\
-  sum12YXreal += row1Yreal * col2Xreal;					\
-  sum12YXreal += row1Yimag * col2Ximag;					\
-  sum12YXimag += row1Yimag * col2Xreal;					\
-  sum12YXimag -= row1Yreal * col2Ximag;					\
-  sum12YYreal += row1Yreal * col2Yreal;					\
-  sum12YYreal += row1Yimag * col2Yimag;					\
-  sum12YYimag += row1Yimag * col2Yreal;					\
-  sum12YYimag -= row1Yreal * col2Yimag;					\
-  sum21XXreal += row2Xreal * col1Xreal;					\
-  sum21XXreal += row2Ximag * col1Ximag;					\
-  sum21XXimag += row2Ximag * col1Xreal;					\
-  sum21XXimag -= row2Xreal * col1Ximag;					\
-  sum21XYreal += row2Xreal * col1Yreal;					\
-  sum21XYreal += row2Ximag * col1Yimag;					\
-  sum21XYimag += row2Ximag * col1Yreal;					\
-  sum21XYimag -= row2Xreal * col1Yimag;					\
-  sum21YXreal += row2Yreal * col1Xreal;					\
-  sum21YXreal += row2Yimag * col1Ximag;					\
-  sum21YXimag += row2Yimag * col1Xreal;					\
-  sum21YXimag -= row2Yreal * col1Ximag;					\
-  sum21YYreal += row2Yreal * col1Yreal;					\
-  sum21YYreal += row2Yimag * col1Yimag;					\
-  sum21YYimag += row2Yimag * col1Yreal;					\
-  sum21YYimag -= row2Yreal * col1Yimag;					\
-  sum22XXreal += row2Xreal * col2Xreal;					\
-  sum22XXreal += row2Ximag * col2Ximag;					\
-  sum22XXimag += row2Ximag * col2Xreal;					\
-  sum22XXimag -= row2Xreal * col2Ximag;					\
-  sum22XYreal += row2Xreal * col2Yreal;					\
-  sum22XYreal += row2Ximag * col2Yimag;					\
-  sum22XYimag += row2Ximag * col2Yreal;					\
-  sum22XYimag -= row2Xreal * col2Yimag;					\
-  sum22YXreal += row2Yreal * col2Xreal;					\
-  sum22YXreal += row2Yimag * col2Ximag;					\
-  sum22YXimag += row2Yimag * col2Xreal;					\
-  sum22YXimag -= row2Yreal * col2Ximag;					\
-  sum22YYreal += row2Yreal * col2Yreal;					\
-  sum22YYreal += row2Yimag * col2Yimag;					\
-  sum22YYimag += row2Yimag * col2Yreal;					\
-  sum22YYimag -= row2Yreal * col2Yimag;}
 
 CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, const int Nstation, const int write)
 {
@@ -315,7 +212,16 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
   CUBE_DEVICE_CALL(findPosition, Col, Row, blockX, blockY);
 
   //declare shared memory for input coalescing
-  __shared__ float input[2][16*TILE_WIDTH]; // 4* for float4, 2* for 2x2 tile size
+
+#if SHARED_ATOMIC_SIZE == 4
+  __shared__ float input[2][16*TILE_WIDTH]; // 4* for float4, 4* for 2x2 tile size
+  float *input0_p = input[0] + tid;
+  float *input1_p = input[1] + tid;
+#else
+  __shared__ float2 input[2][8*TILE_WIDTH]; // 2* for float4/float2, 4* for 2x2 tile size
+  float2 *input0_p = input[0] + tid;
+  float2 *input1_p = input[1] + tid;
+#endif
 
   //instantiate sum variables
   float sum11XXreal = 0.0, sum11XXimag = 0.0;
@@ -335,18 +241,16 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
   float sum22YXreal = 0.0, sum22YXimag = 0.0;
   float sum22YYreal = 0.0, sum22YYimag = 0.0;
 
-  float *input0_p = input[0] + tid;
-  float *input1_p = input[1] + tid;
   unsigned int array_index = f*Nstation*NPOL + tid;
-  //float array_index = f*Nstation*NPOL + tid;
   if (tid < 4*TILE_WIDTH) {
     array_index += 2*blockX*TILE_WIDTH*NPOL;
   } else {
     array_index += 2*blockY*TILE_WIDTH*NPOL - 4*TILE_HEIGHT;    
+#if SHARED_ATOMIC_SIZE == 4 // threads 32..63 now have offset 64..95
     input0_p += 4*TILE_WIDTH;
     input1_p += 4*TILE_WIDTH;
+#endif
   }
-
 
   LOAD(0, 0);
 
@@ -427,7 +331,8 @@ static XGPUInfo compiletime_info = {
   // Matrix length is same for REGISTER_TILE_TRIANGULAR_ORDER and TRIANGULAR_ORDER
   matLength:     NFREQUENCY * ((NSTATION+1)*(NSTATION/2)*NPOL*NPOL) * (NPULSAR + 1),
 #endif
-  matrix_order:  MATRIX_ORDER
+  matrix_order:  MATRIX_ORDER,
+  shared_atomic_size : SHARED_ATOMIC_SIZE
 };
 
 // This stringification trick is from "info cpp"
@@ -454,6 +359,7 @@ void xgpuInfo(XGPUInfo *pcxs)
   pcxs->vecLengthPipe  = compiletime_info.vecLengthPipe;
   pcxs->matLength      = compiletime_info.matLength;
   pcxs->matrix_order   = compiletime_info.matrix_order;
+  pcxs->shared_atomic_size = compiletime_info.shared_atomic_size;
 }
 
 // Initialize the XGPU.
