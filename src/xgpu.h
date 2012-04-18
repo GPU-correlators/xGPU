@@ -1,3 +1,5 @@
+#include <stddef.h>
+
 #ifndef XGPU_H
 #define XGPU_H
 
@@ -67,6 +69,8 @@ typedef struct XGPUInfoStruct {
   long long unsigned int triLength;
   // Output matrix order
   unsigned int matrix_order;
+  // Size of each shared memory transfer
+  size_t shared_atomic_size;
 } XGPUInfo;
 
 typedef struct XGPUContextStruct {

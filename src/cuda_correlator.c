@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <math.h>
 #include <limits.h>
+#include <cube/cube.h>
 
 #include "xgpu.h"
 
@@ -70,8 +71,9 @@ int main(int argc, char** argv) {
     fprintf(stderr, "error allocating output buffer for xgpuOmpXengine\n");
     goto cleanup;
   }
-  printf("Calling CPU X-Engine\n");
+
 #if (CUBE_MODE == CUBE_DEFAULT)
+  printf("Calling CPU X-Engine\n");
   xgpuOmpXengine(omp_matrix_h, array_h);
 #endif
 

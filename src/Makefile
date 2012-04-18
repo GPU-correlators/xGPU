@@ -66,6 +66,10 @@ NVCCFLAGS += -DNTIME_PIPE=$(NTIMEPIPE)
 endif
 endif
 
+ifdef SHARED_ATOMIC_SIZE
+NVCCFLAGS += -DSHARED_ATOMIC_SIZE=$(SHARED_ATOMIC_SIZE)
+endif
+
 ################################
 # Benchmarking variable handlers
 ################################
