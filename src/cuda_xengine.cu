@@ -192,6 +192,14 @@ CUBE_DEVICE(static void, write2x2, unsigned int &Col, unsigned int &Row, float4 
 
 }
 
+#ifndef BLOCK_COMPLEX
+#define BLOCK_COMPLEX 0
+#endif
+
+#if BLOCK_COMPLEX != 0 && BLOCK_COMPLEX != 1
+#error BLOCK_COMPLEX must be 0 or 1
+#endif
+
 // Use the appropriate shared memory load / store routines according to the atomic size
 #if SHARED_ATOMIC_SIZE == 4
 #include<shared_transfer_4.cuh>
@@ -246,16 +254,35 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
   float sum22YXreal = 0.0, sum22YXimag = 0.0;
   float sum22YYreal = 0.0, sum22YYimag = 0.0;
 
+// TODO Support BLOCK_COMPLEX for SHARED_ATOMIC_SIZE==8
+#if SHARED_ATOMIC_SIZE == 8
+#if BLOCK_COMPLEX == 1
+#error BLOCK_COMPLEX is not currently supported for SHARED_ATOMIC_SIZE == 8
+#endif
+#endif
+
   unsigned int array_index = f*Nstation*NPOL + tid;
+#if BLOCK_COMPLEX == 1
+  unsigned int half_warp = ((tid & 16) >> 4);
+#define IMAG_OFFSET ((NFREQUENCY * NTIME * NSTATION * NPOL / 2) - 16)
+#endif
+
   if (tid < 4*TILE_WIDTH) {
+    // Read in column in first warp
     array_index += 2*blockX*TILE_WIDTH*NPOL;
   } else {
+    // Read in row in second warp
     array_index += 2*blockY*TILE_WIDTH*NPOL - 4*TILE_HEIGHT;    
-#if SHARED_ATOMIC_SIZE == 4 // threads 32..63 now have offset 64..95
+#if SHARED_ATOMIC_SIZE == 4
+    // threads 32..63 now have offset 64..95
     input0_p += 4*TILE_WIDTH;
     input1_p += 4*TILE_WIDTH;
 #endif
   }
+
+#if BLOCK_COMPLEX == 1
+    array_index += half_warp * IMAG_OFFSET;
+#endif
 
   LOAD(0, 0);
 

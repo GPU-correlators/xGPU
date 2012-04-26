@@ -70,6 +70,10 @@ ifdef SHARED_ATOMIC_SIZE
 NVCCFLAGS += -DSHARED_ATOMIC_SIZE=$(SHARED_ATOMIC_SIZE)
 endif
 
+ifdef BLOCK_COMPLEX
+NVCCFLAGS += -DBLOCK_COMPLEX=$(BLOCK_COMPLEX)
+endif
+
 ################################
 # Benchmarking variable handlers
 ################################
