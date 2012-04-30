@@ -192,12 +192,12 @@ CUBE_DEVICE(static void, write2x2, unsigned int &Col, unsigned int &Row, float4 
 
 }
 
-#ifndef BLOCK_COMPLEX
-#define BLOCK_COMPLEX 0
+#ifndef COMPLEX_BLOCK_SIZE
+#define COMPLEX_BLOCK_SIZE 1
 #endif
 
-#if BLOCK_COMPLEX != 0 && BLOCK_COMPLEX != 1
-#error BLOCK_COMPLEX must be 0 or 1
+#if COMPLEX_BLOCK_SIZE != 1 && COMPLEX_BLOCK_SIZE != 8
+#error COMPLEX_BLOCK_SIZE must be 1 or 8
 #endif
 
 // Use the appropriate shared memory load / store routines according to the atomic size
@@ -254,18 +254,13 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
   float sum22YXreal = 0.0, sum22YXimag = 0.0;
   float sum22YYreal = 0.0, sum22YYimag = 0.0;
 
-// TODO Support BLOCK_COMPLEX for SHARED_ATOMIC_SIZE==8
 #if SHARED_ATOMIC_SIZE == 8
-#if BLOCK_COMPLEX == 1
-#error BLOCK_COMPLEX is not currently supported for SHARED_ATOMIC_SIZE == 8
+#if COMPLEX_BLOCK_SIZE != 1
+#error COMPLEX_BLOCK_SIZE must be 1 for SHARED_ATOMIC_SIZE == 8
 #endif
 #endif
 
   unsigned int array_index = f*Nstation*NPOL + tid;
-#if BLOCK_COMPLEX == 1
-  unsigned int half_warp = ((tid & 16) >> 4);
-#define IMAG_OFFSET ((NFREQUENCY * NTIME * NSTATION * NPOL / 2) - 16)
-#endif
 
   if (tid < 4*TILE_WIDTH) {
     // Read in column in first warp
@@ -279,10 +274,6 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
     input1_p += 4*TILE_WIDTH;
 #endif
   }
-
-#if BLOCK_COMPLEX == 1
-    array_index += half_warp * IMAG_OFFSET;
-#endif
 
   LOAD(0, 0);
 
