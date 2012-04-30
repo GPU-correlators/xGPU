@@ -196,8 +196,8 @@ CUBE_DEVICE(static void, write2x2, unsigned int &Col, unsigned int &Row, float4 
 #define COMPLEX_BLOCK_SIZE 1
 #endif
 
-#if COMPLEX_BLOCK_SIZE != 1 && COMPLEX_BLOCK_SIZE != 8
-#error COMPLEX_BLOCK_SIZE must be 1 or 8
+#if COMPLEX_BLOCK_SIZE != 1 && COMPLEX_BLOCK_SIZE != 32
+#error COMPLEX_BLOCK_SIZE must be 1 or 32
 #endif
 
 // Use the appropriate shared memory load / store routines according to the atomic size
@@ -256,7 +256,7 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
 
 #if SHARED_ATOMIC_SIZE == 8
 #if COMPLEX_BLOCK_SIZE != 1
-#error COMPLEX_BLOCK_SIZE must be 1 for SHARED_ATOMIC_SIZE == 8
+#error COMPLEX_BLOCK_SIZE must be 1 for SHARED_ATOMIC_SIZE == 8 (for now)
 #endif
 #endif
 

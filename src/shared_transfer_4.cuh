@@ -34,42 +34,42 @@
 
 #if COMPLEX_BLOCK_SIZE == 1
 #define TWO_BY_TWO_PRELOAD(s)						\
- {float col1Xreal = input[s][4*tx];					\
-  float col1Ximag = input[s][4*tx + 4*TILE_WIDTH];			\
-  float col1Yreal = input[s][4*tx + 1];					\
-  float col1Yimag = input[s][4*tx + 1 + 4*TILE_WIDTH];			\
-  float col2Xreal = input[s][4*tx + 2];					\
-  float col2Ximag = input[s][4*tx + 2 + 4*TILE_WIDTH];			\
-  float col2Yreal = input[s][4*tx + 3];					\
-  float col2Yimag = input[s][4*tx + 3 + 4*TILE_WIDTH];			\
-  float row1Xreal = input[s][4*ty + 8*TILE_WIDTH];			\
-  float row1Ximag = input[s][4*ty + 4*TILE_HEIGHT + 8*TILE_WIDTH];	\
-  float row1Yreal = input[s][4*ty + 1 + 8*TILE_WIDTH];			\
+ {float col1Xreal = input[s][4*tx                                   ];	\
+  float col1Ximag = input[s][4*tx     + 4*TILE_WIDTH                ];	\
+  float col1Yreal = input[s][4*tx + 1                               ];	\
+  float col1Yimag = input[s][4*tx + 1 + 4*TILE_WIDTH                ];	\
+  float col2Xreal = input[s][4*tx + 2                               ];	\
+  float col2Ximag = input[s][4*tx + 2 + 4*TILE_WIDTH                ];	\
+  float col2Yreal = input[s][4*tx + 3                               ];	\
+  float col2Yimag = input[s][4*tx + 3 + 4*TILE_WIDTH                ];	\
+  float row1Xreal = input[s][4*ty                     + 8*TILE_WIDTH];	\
+  float row1Ximag = input[s][4*ty     + 4*TILE_HEIGHT + 8*TILE_WIDTH];	\
+  float row1Yreal = input[s][4*ty + 1                 + 8*TILE_WIDTH];	\
   float row1Yimag = input[s][4*ty + 1 + 4*TILE_HEIGHT + 8*TILE_WIDTH];	\
-  float row2Xreal = input[s][4*ty + 2 + 8*TILE_WIDTH];			\
+  float row2Xreal = input[s][4*ty + 2                 + 8*TILE_WIDTH];	\
   float row2Ximag = input[s][4*ty + 2 + 4*TILE_HEIGHT + 8*TILE_WIDTH];	\
-  float row2Yreal = input[s][4*ty + 3 + 8*TILE_WIDTH];			\
+  float row2Yreal = input[s][4*ty + 3                 + 8*TILE_WIDTH];	\
   float row2Yimag = input[s][4*ty + 3 + 4*TILE_HEIGHT + 8*TILE_WIDTH];
-#elif COMPLEX_BLOCK_SIZE == 8
+#elif COMPLEX_BLOCK_SIZE == 32
 #define TWO_BY_TWO_PRELOAD(s)						\
- {float col1Xreal = input[s][2*tx];					\
-  float col1Ximag = input[s][2*tx + 3];					\
-  float col1Yreal = input[s][2*tx + 4*TILE_WIDTH];			\
-  float col1Yimag = input[s][2*tx + 4 + 4*TILE_WIDTH];			\
-  float col2Xreal = input[s][2*tx + 1];					\
-  float col2Ximag = input[s][2*tx + 5];					\
-  float col2Yreal = input[s][2*tx + 1 + 4*TILE_WIDTH];			\
-  float col2Yimag = input[s][2*tx + 5 + 4*TILE_WIDTH];			\
-  float row1Xreal = input[s][2*ty];					\
-  float row1Ximag = input[s][2*ty + 3];					\
-  float row1Yreal = input[s][2*ty + 4*TILE_WIDTH];			\
-  float row1Yimag = input[s][2*ty + 4 + 4*TILE_WIDTH];			\
-  float row2Xreal = input[s][2*ty + 1];					\
-  float row2Ximag = input[s][2*ty + 5];					\
-  float row2Yreal = input[s][2*ty + 1 + 4*TILE_WIDTH];			\
-  float row2Yimag = input[s][2*ty + 5 + 4*TILE_WIDTH];
+ {float col1Xreal = input[s][2*tx                                  ];	\
+  float col1Ximag = input[s][2*tx     + 2*TILE_WIDTH               ];	\
+  float col1Yreal = input[s][2*tx     + 4*TILE_WIDTH               ];	\
+  float col1Yimag = input[s][2*tx     + 6*TILE_WIDTH               ];	\
+  float col2Xreal = input[s][2*tx + 1                              ];	\
+  float col2Yreal = input[s][2*tx + 1 + 4*TILE_WIDTH               ];	\
+  float col2Ximag = input[s][2*tx + 1 + 2*TILE_WIDTH               ];	\
+  float col2Yimag = input[s][2*tx + 1 + 6*TILE_WIDTH               ];	\
+  float row1Xreal = input[s][2*ty                    + 8*TILE_WIDTH];	\
+  float row1Ximag = input[s][2*ty     + 2*TILE_WIDTH + 8*TILE_WIDTH];	\
+  float row1Yreal = input[s][2*ty     + 4*TILE_WIDTH + 8*TILE_WIDTH];	\
+  float row1Yimag = input[s][2*ty     + 6*TILE_WIDTH + 8*TILE_WIDTH];	\
+  float row2Xreal = input[s][2*ty + 1                + 8*TILE_WIDTH];	\
+  float row2Yreal = input[s][2*ty + 1 + 4*TILE_WIDTH + 8*TILE_WIDTH];	\
+  float row2Ximag = input[s][2*ty + 1 + 2*TILE_WIDTH + 8*TILE_WIDTH];	\
+  float row2Yimag = input[s][2*ty + 1 + 6*TILE_WIDTH + 8*TILE_WIDTH];
 #else
-#error COMPLEX_BLOCK_SIZE must be 1 or 8
+#error COMPLEX_BLOCK_SIZE must be 1 or 32
 #endif // COMPLEX_BLOCK_SIZE
 
 #define TWO_BY_TWO_COMPUTE(s)						\

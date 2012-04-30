@@ -26,8 +26,8 @@ do {                                                                            
 
 #ifndef COMPLEX_BLOCK_SIZE
 #define COMPLEX_BLOCK_SIZE 1
-#elif COMPLEX_BLOCK_SIZE != 1 && COMPLEX_BLOCK_SIZE != 8
-#error COMPLEX_BLOCK_SIZE must be 1 or 8
+#elif COMPLEX_BLOCK_SIZE != 1 && COMPLEX_BLOCK_SIZE != 32
+#error COMPLEX_BLOCK_SIZE must be 1 or 32
 #endif
 
 void xgpuOmpXengine(Complex *matrix_h, ComplexInput *array_h) {
@@ -56,12 +56,12 @@ void xgpuOmpXengine(Complex *matrix_h, ComplexInput *array_h) {
 	// Probably not the cleanest way to do this...
 	int i1 = ((t*NFREQUENCY + f)*NSTATION + station1)*NPOL;
 	int i2 = ((t*NFREQUENCY + f)*NSTATION + station2)*NPOL;
-	i1 = 8*(i1/8) + ((i1/2)%4);
-	i2 = 8*(i2/8) + ((i2/2)%4);
+	i1 = 32*(i1/32) + ((i1/2)%16);
+	i2 = 32*(i2/32) + ((i2/2)%16);
 	ComplexInput rowXYreal = array_h[i1];
-	ComplexInput rowXYimag = array_h[i1+4];
+	ComplexInput rowXYimag = array_h[i1+16];
 	ComplexInput colXYreal = array_h[i2];
-	ComplexInput colXYimag = array_h[i2+4];
+	ComplexInput colXYimag = array_h[i2+16];
 	inputRowX.real = rowXYreal.real;
 	inputRowX.imag = rowXYimag.real;
 	inputRowY.real = rowXYreal.imag;
