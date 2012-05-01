@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <math.h>
 #include <limits.h>
+#include <unistd.h>
 #include <cube/cube.h>
 
 #include "xgpu.h"
@@ -17,6 +18,7 @@
 
 int main(int argc, char** argv) {
 
+  int opt;
   unsigned int seed = 1;
   int verbose = 0;
   XGPUInfo xgpu_info;
@@ -24,11 +26,19 @@ int main(int argc, char** argv) {
   int xgpu_error = 0;
   Complex *omp_matrix_h = NULL;
 
-  if(argc>1) {
-    seed = strtoul(argv[1], NULL, 0);
-  }
-  if(argc>2) {
-    verbose = strtoul(argv[2], NULL, 0);
+  while ((opt = getopt(argc, argv, "hs:v:")) != -1) {
+    switch (opt) {
+      case 's':
+        seed = strtoul(optarg, NULL, 0);
+        break;
+      case 'v':
+        verbose = strtoul(optarg, NULL, 0);
+        break;
+      default: /* '?' */
+        fprintf(stderr, "Usage: %s [-s SEED] [-v 0|1|2|3]\n",
+            argv[0]);
+        exit(EXIT_FAILURE);
+    }
   }
 
   srand(seed);
