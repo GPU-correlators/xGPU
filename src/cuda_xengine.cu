@@ -42,7 +42,7 @@ typedef struct XGPUInternalContextStruct {
   Complex *matrix_d;
 
   // used for overlapping comms and compute
-  cudaStream_t *streams;
+  cudaStream_t streams[2];
 
   // texture channel descriptor
   cudaChannelFormatDesc channelDesc;
@@ -444,7 +444,6 @@ int xgpuInit(XGPUContext *context)
   }
 
   // create the streams
-  internal->streams = (cudaStream_t*) malloc(2*sizeof(cudaStream_t));
   for(int i=0; i<2; i++) cudaStreamCreate(&(internal->streams[i]));
   checkCudaError();
 
