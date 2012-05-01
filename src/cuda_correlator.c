@@ -19,6 +19,7 @@
 int main(int argc, char** argv) {
 
   int opt;
+  int device = 0;
   unsigned int seed = 1;
   int verbose = 0;
   XGPUInfo xgpu_info;
@@ -26,8 +27,11 @@ int main(int argc, char** argv) {
   int xgpu_error = 0;
   Complex *omp_matrix_h = NULL;
 
-  while ((opt = getopt(argc, argv, "hs:v:")) != -1) {
+  while ((opt = getopt(argc, argv, "d:hs:v:")) != -1) {
     switch (opt) {
+      case 'd':
+        device = strtoul(optarg, NULL, 0);
+        break;
       case 's':
         seed = strtoul(optarg, NULL, 0);
         break;
@@ -35,7 +39,7 @@ int main(int argc, char** argv) {
         verbose = strtoul(optarg, NULL, 0);
         break;
       default: /* '?' */
-        fprintf(stderr, "Usage: %s [-s SEED] [-v 0|1|2|3]\n",
+        fprintf(stderr, "Usage: %s [-d DEVNUM] [-s SEED] [-v 0|1|2|3]\n",
             argv[0]);
         exit(EXIT_FAILURE);
     }
@@ -63,7 +67,7 @@ int main(int argc, char** argv) {
   XGPUContext context;
   context.array_h = NULL;
   context.matrix_h = NULL;
-  xgpu_error = xgpuInit(&context, 0);
+  xgpu_error = xgpuInit(&context, device);
   if(xgpu_error) {
     fprintf(stderr, "xgpuInit returned error code %d\n", xgpu_error);
     goto cleanup;
