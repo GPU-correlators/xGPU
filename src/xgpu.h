@@ -71,6 +71,8 @@ typedef struct XGPUInfoStruct {
   unsigned int matrix_order;
   // Size of each shared memory transfer
   size_t shared_atomic_size;
+  // Number of complex values per real/imag block
+  size_t complex_block_size;
 } XGPUInfo;
 
 typedef struct XGPUContextStruct {

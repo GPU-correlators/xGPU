@@ -356,7 +356,8 @@ static XGPUInfo compiletime_info = {
 #endif
   triLength:     NFREQUENCY * ((NSTATION+1)*(NSTATION/2)*NPOL*NPOL) * (NPULSAR + 1),
   matrix_order:  MATRIX_ORDER,
-  shared_atomic_size : SHARED_ATOMIC_SIZE
+  shared_atomic_size : SHARED_ATOMIC_SIZE,
+  complex_block_size: COMPLEX_BLOCK_SIZE
 };
 
 // This stringification trick is from "info cpp"
@@ -385,6 +386,7 @@ void xgpuInfo(XGPUInfo *pcxs)
   pcxs->triLength      = compiletime_info.triLength;
   pcxs->matrix_order   = compiletime_info.matrix_order;
   pcxs->shared_atomic_size = compiletime_info.shared_atomic_size;
+  pcxs->complex_block_size = compiletime_info.complex_block_size;
 }
 
 // Initialize the XGPU.

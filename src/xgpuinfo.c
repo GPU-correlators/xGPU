@@ -52,7 +52,9 @@ int main(int argc, char** argv)
     default: printf("<unknown order code: %d>\n", xgpu_info.matrix_order);
   }
 
-  printf("Shared atomic transfer size %lu\n", xgpu_info.shared_atomic_size);
+  printf("Shared atomic transfer size: %lu\n", xgpu_info.shared_atomic_size);
+
+  printf("Complex block size: %lu\n", xgpu_info.complex_block_size);
 
   return 0;
 }
