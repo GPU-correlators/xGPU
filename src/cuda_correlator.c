@@ -53,7 +53,7 @@ int main(int argc, char** argv) {
   XGPUContext context;
   context.array_h = NULL;
   context.matrix_h = NULL;
-  xgpu_error = xgpuInit(&context);
+  xgpu_error = xgpuInit(&context, 0);
   if(xgpu_error) {
     fprintf(stderr, "xgpuInit returned error code %d\n", xgpu_error);
     goto cleanup;

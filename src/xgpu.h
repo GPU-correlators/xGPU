@@ -119,7 +119,7 @@ void xgpuInfo(XGPUInfo *pcxs);
 // If context->matrix_h is zero, an array of Complex elements is allocated (of
 // the appropriate size) via CudaMallocHost, otherwise context->matrix_h is
 // passed to CudaHostRegister.
-int xgpuInit(XGPUContext *context);
+int xgpuInit(XGPUContext *context, int device);
 
 // Clear the device integration buffer
 //

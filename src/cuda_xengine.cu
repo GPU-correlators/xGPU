@@ -37,6 +37,9 @@ static int writeMatrix = 1;
 static long page_size = sysconf(_SC_PAGE_SIZE);
 
 typedef struct XGPUInternalContextStruct {
+  // Which device this context applies to
+  int device;
+
   //memory pointers on the device
   ComplexInput *array_d[2];
   Complex *matrix_d;
@@ -389,10 +392,13 @@ void xgpuInfo(XGPUInfo *pcxs)
   pcxs->complex_block_size = compiletime_info.complex_block_size;
 }
 
-// Initialize the XGPU.
+// Initialize the XGPU.  The device number is intentionally not part of the
+// context because the device number needs to be maintained as part of the
+// internal context (.e.g to ensure consistency with the device on which memory
+// was allocated).
 //
 // TODO Cleanup as needed if returning due to error
-int xgpuInit(XGPUContext *context)
+int xgpuInit(XGPUContext *context, int device)
 {
   int error = XGPU_OK;
 
@@ -405,13 +411,13 @@ int xgpuInit(XGPUContext *context)
     return XGPU_OUT_OF_MEMORY;
   }
   context->internal = internal;
+  internal->device = device;
 
   long long unsigned int vecLengthPipe = compiletime_info.vecLengthPipe;
   long long unsigned int matLength = compiletime_info.matLength;
 
   //assign the device
-  const int device = 0;
-  cudaSetDevice(device); // TODO Put device number in XGPU(Internal?)Context
+  cudaSetDevice(device);
   checkCudaError();
 
   // Setup input buffer
@@ -501,6 +507,8 @@ int xgpuClearDeviceIntegrationBuffer(XGPUContext *context)
   if(!internal) {
     return XGPU_NOT_INITIALIZED;
   }
+  //assign the device
+  cudaSetDevice(internal->device);
 
   cudaMemset(internal->matrix_d, '\0', matLength*sizeof(Complex));
   checkCudaError();
@@ -514,6 +522,8 @@ int xgpuSetHostInputBuffer(XGPUContext *context)
   if(!internal) {
     return XGPU_NOT_INITIALIZED;
   }
+  //assign the device
+  cudaSetDevice(internal->device);
 
   if(internal->free_array_h) {
     cudaFreeHost(internal->free_array_h);
@@ -559,6 +569,8 @@ int xgpuSetHostOutputBuffer(XGPUContext *context)
   if(!internal) {
     return XGPU_NOT_INITIALIZED;
   }
+  //assign the device
+  cudaSetDevice(internal->device);
 
   if(internal->free_matrix_h) {
     cudaFreeHost(internal->free_matrix_h);
@@ -605,6 +617,9 @@ void xgpuFree(XGPUContext *context)
   XGPUInternalContext *internal = (XGPUInternalContext *)context->internal;
 
   if(internal) {
+    //assign the device
+    cudaSetDevice(internal->device);
+
     for(int i=0; i<2; i++)
       cudaStreamDestroy(internal->streams[i]);
 
@@ -642,6 +657,8 @@ int xgpuCudaXengine(XGPUContext *context, int doDump)
   if(!internal) {
     return XGPU_NOT_INITIALIZED;
   }
+  //assign the device
+  cudaSetDevice(internal->device);
 
   ComplexInput **array_d = internal->array_d;
   cudaStream_t *streams = internal->streams;
