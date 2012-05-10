@@ -93,6 +93,13 @@ static __device__ __constant__ unsigned char tIndex[PIPE_LENGTH*NFREQUENCY];
     }							\
   } while (0)
 
+#ifdef TIME_CUDA_CALLS
+#define CLOCK_GETTIME(clk_id, tp) clock_gettime(clk_id, tp)
+#define PRINT_ELAPASED(f,t) printf("%s %ld ns\n", f, t)
+#else
+#define CLOCK_GETTIME(clk_id, tp)
+#define PRINT_ELAPASED(f,t)
+#endif
 
 //determine row and column from blockIdx.x
 CUBE_DEVICE(static void, findPosition, unsigned int &Col, unsigned int &Row, unsigned int &blockX, unsigned int &blockY) {
@@ -515,21 +522,37 @@ int xgpuClearDeviceIntegrationBuffer(XGPUContext *context)
   return XGPU_OK;
 }
 
+#define ELAPSED_NS(start,stop) \
+  (((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))
+
 // Specify a new host input buffer.
 int xgpuSetHostInputBuffer(XGPUContext *context)
 {
+#ifdef TIME_CUDA_CALLS
+  struct timespec a, b;
+#endif
+
   XGPUInternalContext *internal = (XGPUInternalContext *)context->internal;
   if(!internal) {
     return XGPU_NOT_INITIALIZED;
   }
   //assign the device
+  CLOCK_GETTIME(CLOCK_MONOTONIC, &a);
   cudaSetDevice(internal->device);
+  CLOCK_GETTIME(CLOCK_MONOTONIC, &b);
+  PRINT_ELAPASED("cudaSetDevice", ELAPSED_NS(a,b));
 
   if(internal->free_array_h) {
+    CLOCK_GETTIME(CLOCK_MONOTONIC, &a);
     cudaFreeHost(internal->free_array_h);
+    CLOCK_GETTIME(CLOCK_MONOTONIC, &b);
+    PRINT_ELAPASED("cudaFreeHost", ELAPSED_NS(a,b));
   }
   if(internal->unregister_array_h) {
+    CLOCK_GETTIME(CLOCK_MONOTONIC, &a);
     cudaHostUnregister(internal->unregister_array_h);
+    CLOCK_GETTIME(CLOCK_MONOTONIC, &b);
+    PRINT_ELAPASED("cudaHostUnregister", ELAPSED_NS(a,b));
   }
 
   if(context->array_h) {
@@ -547,13 +570,19 @@ int xgpuSetHostInputBuffer(XGPUContext *context)
     fprintf(stderr, "page aligned context->array_h = %p\n", ptr_aligned);
     fprintf(stderr, "length = %lx\n", length);
 #endif
+    CLOCK_GETTIME(CLOCK_MONOTONIC, &a);
     cudaHostRegister((void *)ptr_aligned, length, 0);
+    CLOCK_GETTIME(CLOCK_MONOTONIC, &b);
+    PRINT_ELAPASED("cudaHostRegister", ELAPSED_NS(a,b));
     internal->unregister_array_h = (ComplexInput *)ptr_aligned;
     internal->free_array_h = NULL;
     checkCudaError();
   } else {
     // allocate host memory
+    CLOCK_GETTIME(CLOCK_MONOTONIC, &a);
     cudaMallocHost(&(context->array_h), compiletime_info.vecLength*sizeof(ComplexInput));
+    CLOCK_GETTIME(CLOCK_MONOTONIC, &b);
+    PRINT_ELAPASED("cudaMallocHost", ELAPSED_NS(a,b));
     internal->free_array_h = context->array_h;
     internal->unregister_array_h = NULL;
     checkCudaError();
