@@ -4,6 +4,10 @@
 # Usage: bench
 # Output: Prints cube_benchmark.log to the screen with more
 
+exec 3>&1
+exec 1>/dev/null
+exec 2>/dev/null
+
 make clean
 make cuda_correlator CUBE_COUNT_MODE=1 OSTYPE=$OSTYPE "$@"
 ./cuda_correlator
@@ -23,6 +27,8 @@ make cuda_correlator CUBE_ASYNC_TIME_MODE=1 OSTYPE=$OSTYPE "$@"
 # Rebuild a non-benchmarking version
 make clean
 make all OSTYPE=$OSTYPE "$@"
+
+exec 1>&3
 
 # Display results
 more cube_benchmark.log
