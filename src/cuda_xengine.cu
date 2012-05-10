@@ -561,7 +561,10 @@ int xgpuSetHostInputBuffer(XGPUContext *context)
     uintptr_t ptr_in = (uintptr_t)context->array_h;
     uintptr_t ptr_aligned = ptr_in - (ptr_in % page_size);
     // Compute length starting with compile time requirement
-    size_t length = compiletime_info.vecLength*sizeof(ComplexInput);
+    size_t length = context->array_len * sizeof(ComplexInput);
+    // TODO Verify that length is at least
+    // "compiletime_info.vecLength*sizeof(ComplexInput)"
+
     // Add in any rounding that was done to the input pointer
     length += (ptr_in - ptr_aligned);
     // Round length up to next multiple of page size
@@ -579,8 +582,9 @@ int xgpuSetHostInputBuffer(XGPUContext *context)
     checkCudaError();
   } else {
     // allocate host memory
+    context->array_len = compiletime_info.vecLength*sizeof(ComplexInput);
     CLOCK_GETTIME(CLOCK_MONOTONIC, &a);
-    cudaMallocHost(&(context->array_h), compiletime_info.vecLength*sizeof(ComplexInput));
+    cudaMallocHost(&(context->array_h), context->array_len);
     CLOCK_GETTIME(CLOCK_MONOTONIC, &b);
     PRINT_ELAPASED("cudaMallocHost", ELAPSED_NS(a,b));
     internal->free_array_h = context->array_h;
@@ -616,7 +620,10 @@ int xgpuSetHostOutputBuffer(XGPUContext *context)
     uintptr_t ptr_in = (uintptr_t)context->matrix_h;
     uintptr_t ptr_aligned = ptr_in - (ptr_in % page_size);
     // Compute length starting with compile time requirement
-    size_t length = compiletime_info.matLength*sizeof(Complex);
+    size_t length = context->matrix_len * sizeof(Complex);
+    // TODO Verify that length is at least
+    // "compiletime_info.matLength*sizeof(Complex)"
+
     // Add in any rounding that was done to the input pointer
     length += (ptr_in - ptr_aligned);
     // Round length up to next multiple of page size
@@ -631,7 +638,8 @@ int xgpuSetHostOutputBuffer(XGPUContext *context)
     checkCudaError();
   } else {
     // allocate host memory
-    cudaMallocHost(&(context->matrix_h), compiletime_info.matLength*sizeof(Complex));
+    context->matrix_len = compiletime_info.matLength*sizeof(Complex);
+    cudaMallocHost(&(context->matrix_h), context->matrix_len);
     internal->free_matrix_h = context->matrix_h;
     internal->unregister_matrix_h = NULL;
     checkCudaError();
@@ -680,7 +688,7 @@ void xgpuFree(XGPUContext *context)
   CUBE_WRITE();
 }
 
-int xgpuCudaXengine(XGPUContext *context, int doDump)
+int xgpuCudaXengine(XGPUContext *context, size_t input_offset, size_t output_offset, int doDump)
 {
   XGPUInternalContext *internal = (XGPUInternalContext *)context->internal;
   if(!internal) {
@@ -718,7 +726,7 @@ int xgpuCudaXengine(XGPUContext *context, int doDump)
 
   // Need to fill pipeline before loop
   long long unsigned int vecLengthPipe = compiletime_info.vecLengthPipe;
-  ComplexInput *array_hp = &context->array_h[0*vecLengthPipe];
+  ComplexInput *array_hp = context->array_h + input_offset;
   CUBE_ASYNC_COPY_CALL(array_d[0], array_hp, vecLengthPipe*sizeof(ComplexInput), cudaMemcpyHostToDevice, streams[0]);
   cudaEventRecord(copyCompletion[0], streams[0]); // record the completion of the h2d transfer
   checkCudaError();
@@ -745,8 +753,8 @@ int xgpuCudaXengine(XGPUContext *context, int doDump)
     cudaEventRecord(kernelCompletion[(p+1)%2], streams[1]); // record the completion of the h2d transfer
     checkCudaError();
 
-    // Download input data
-    ComplexInput *array_hp = &context->array_h[p*vecLengthPipe];
+    // Download next chunk of input data
+    array_hp += vecLengthPipe;
     cudaStreamWaitEvent(streams[0], kernelCompletion[p%2], 0); // only start the transfer once the kernel has completed
     CUBE_ASYNC_COPY_CALL(array_load, array_hp, vecLengthPipe*sizeof(ComplexInput), cudaMemcpyHostToDevice, streams[0]);
     cudaEventRecord(copyCompletion[p%2], streams[0]); // record the completion of the h2d transfer
@@ -770,7 +778,7 @@ int xgpuCudaXengine(XGPUContext *context, int doDump)
 
   if(doDump) {
     //copy the data back, employing a similar strategy as above
-    CUBE_COPY_CALL(context->matrix_h, internal->matrix_d, compiletime_info.matLength*sizeof(Complex), cudaMemcpyDeviceToHost);
+    CUBE_COPY_CALL(context->matrix_h + output_offset, internal->matrix_d, compiletime_info.matLength*sizeof(Complex), cudaMemcpyDeviceToHost);
     checkCudaError();
   }
 

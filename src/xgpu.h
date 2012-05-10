@@ -80,6 +80,10 @@ typedef struct XGPUContextStruct {
   ComplexInput *array_h;
   Complex *matrix_h;
 
+  // Size of memory buffers on host;
+  size_t array_len;
+  size_t matrix_len;
+
   // For internal use only
   void *internal;
 } XGPUContext;
@@ -109,16 +113,17 @@ void xgpuInfo(XGPUInfo *pcxs);
 // In addition to allocating device memory and initializing private internal
 // context, this routine calls xgpuSetHostInputBuffer() and
 // xgpuSetHostOutputBuffer().  Be sure to set the context's array_h and
-// matrix_h fields accordingly.
-// registered with the CUDA runtime via CudaHostRegister().
+// matrix_h fields and the corresponding length fields) accordingly.
 //
 // If context->array_h is zero, an array of ComplexInput elements is allocated
-// (of the appropriate size) via CudaMallocHost, otherwise context->array_h is
-// passed to CudaHostRegister.
+// (of the appropriate size) via CudaMallocHost, otherwise the memory region
+// pointed to by context->array_h of length context->array_len is registered
+// with CUDA via the CudaHostRegister function.
 //
 // If context->matrix_h is zero, an array of Complex elements is allocated (of
-// the appropriate size) via CudaMallocHost, otherwise context->matrix_h is
-// passed to CudaHostRegister.
+// the appropriate size) via CudaMallocHost, otherwise the memory region
+// pointed to by context->matrix_h of length context->matrix_len if registered
+// with CUDA via the CudaHostRegister function.
 int xgpuInit(XGPUContext *context, int device);
 
 // Clear the device integration buffer
@@ -132,12 +137,13 @@ int xgpuClearDeviceIntegrationBuffer(XGPUContext *context);
 // The previous host input buffer is freed or unregistered (as required) and
 // the value in context->array_h is used to specify the new one.  If
 // context->array_h is zero, an array of ComplexInput elements is allocated (of
-// the appropriate size) via CudaMallocHost, otherwise cudaHostRegister is
-// called to register the region of memory pointed to by context->array_h.  The
-// region of memory registered with cudaHostRegister starts at context->array_h
-// rounded down to the nearest PAGE_SIZE boundary and has a size equal to the
-// vecLength value returned by xgpuInfo() plus the amount, if any, of rounding
-// down of context->array_h all rounded up to the next multiple of PAGE_SIZE.
+// the appropriate size) via CudaMallocHost and context->array_len is set to
+// that value.  Otherwise cudaHostRegister is called to register the region of
+// memory pointed to by context->array_h.  The region of memory registered with
+// cudaHostRegister starts at context->array_h rounded down to the nearest
+// PAGE_SIZE boundary and has a size equal to context->array_len (number of
+// complex entries) plus the amount, if any, of rounding down of
+// context->array_h all rounded up to the next multiple of PAGE_SIZE.
 int xgpuSetHostInputBuffer(XGPUContext *context);
 
 // Specify a new host output buffer.
@@ -145,19 +151,21 @@ int xgpuSetHostInputBuffer(XGPUContext *context);
 // The previous host output buffer is freed or unregistered (as required) and
 // the value in context->matrix_h is used to specify the new one.  If
 // context->matrix_h is zero, an array of Complex elements is allocated (of the
-// appropriate size) via CudaMallocHost, otherwise cudaHostRegister is called
-// to register the region of memory pointed to by context->matrix_h.  The
-// region of memory registered with cudaHostRegister starts at
-// context->matrix_h rounded down to the nearest PAGE_SIZE boundary and has a
-// size equal to the matLength value returned by xgpuInfo() plus the amount, if
-// any, of rounding down of context->matrix_h all rounded up to the next
-// multiple of PAGE_SIZE.
+// appropriate size) via CudaMallocHost and context->matrix_len is set to that
+// value.  Otherwise cudaHostRegister is called to register the region of
+// memory pointed to by context->matrix_h.  The region of memory registered
+// with cudaHostRegister starts at context->matrix_h rounded down to the
+// nearest PAGE_SIZE boundary and has a size equal to context->matrix_len
+// (number of complex entries) plus the amount, if any, of rounding down of
+// context->matrix_h all rounded up to the next multiple of PAGE_SIZE.
 int xgpuSetHostOutputBuffer(XGPUContext *context);
 
 void xgpuFree(XGPUContext *context);
 
-// Perform correlation.  If doDump is non-zero, copy output data back to host.
-int xgpuCudaXengine(XGPUContext *context, int doDump);
+// Perform correlation.  Correlates the input data at (context->array_h +
+// input_offset).  If doDump is non-zero, copy output data back to host at
+// (context->matrix_h + output_offset).
+int xgpuCudaXengine(XGPUContext *context, size_t input_offset, size_t output_offset, int doDump);
 
 // Functions in cpu_util.cc
 

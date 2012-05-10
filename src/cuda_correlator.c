@@ -92,7 +92,7 @@ int main(int argc, char** argv) {
 #endif
 
   printf("Calling GPU X-Engine\n");
-  xgpu_error = xgpuCudaXengine(&context, 1);
+  xgpu_error = xgpuCudaXengine(&context, 0, 0, 1);
   if(xgpu_error) {
     fprintf(stderr, "xgpuCudaXengine returned error code %d\n", xgpu_error);
     goto cleanup;
