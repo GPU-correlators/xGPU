@@ -20,7 +20,7 @@ LIBXGPU = libxgpu.dll
 else
 NVCCFLAGS = -Xcompiler -fopenmp -Xcompiler -D_REENTRANT -Xcompiler -Wall
 LFLAGS = -L$(CUDA_LIBDIR) -L.
-RPATH = -Xlinker -rpath,'$${ORIGIN}'
+RPATH = -Xlinker -rpath,'$${ORIGIN}:$${ORIGIN}/../lib'
 LIBXGPU = libxgpu.so
 endif
 
