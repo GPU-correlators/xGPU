@@ -84,6 +84,14 @@ typedef struct XGPUContextStruct {
   size_t array_len;
   size_t matrix_len;
 
+  // Offsets into memory buffers on host.  When calling xgpuSetHostInputBuffer
+  // or xgpuSetHostOutputBuffer (or functions that call them such as xgpuInit),
+  // these fields are initialized to 0.  When using oversized externally (i.e.
+  // caller) allocated host buffers, these fields should be set appropriately
+  // prior to calling xgpuCudaXengine.
+  size_t input_offset;
+  size_t output_offset;
+
   // For internal use only
   void *internal;
 } XGPUContext;
@@ -163,9 +171,9 @@ int xgpuSetHostOutputBuffer(XGPUContext *context);
 void xgpuFree(XGPUContext *context);
 
 // Perform correlation.  Correlates the input data at (context->array_h +
-// input_offset).  If doDump is non-zero, copy output data back to host at
-// (context->matrix_h + output_offset).
-int xgpuCudaXengine(XGPUContext *context, size_t input_offset, size_t output_offset, int doDump);
+// context->input_offset).  If doDump is non-zero, copy output data back to
+// host at (context->matrix_h + context->output_offset).
+int xgpuCudaXengine(XGPUContext *context, int doDump);
 
 // Functions in cpu_util.cc
 

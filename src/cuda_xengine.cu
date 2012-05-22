@@ -592,6 +592,9 @@ int xgpuSetHostInputBuffer(XGPUContext *context)
     checkCudaError();
   }
 
+  // Init input_offset to 0
+  context->input_offset = 0;
+
   return XGPU_OK;
 }
 
@@ -645,6 +648,9 @@ int xgpuSetHostOutputBuffer(XGPUContext *context)
     checkCudaError();
   }
 
+  // Init output_offset to 0
+  context->output_offset = 0;
+
   return XGPU_OK;
 }
 
@@ -688,7 +694,7 @@ void xgpuFree(XGPUContext *context)
   CUBE_WRITE();
 }
 
-int xgpuCudaXengine(XGPUContext *context, size_t input_offset, size_t output_offset, int doDump)
+int xgpuCudaXengine(XGPUContext *context, int doDump)
 {
   XGPUInternalContext *internal = (XGPUInternalContext *)context->internal;
   if(!internal) {
@@ -726,7 +732,7 @@ int xgpuCudaXengine(XGPUContext *context, size_t input_offset, size_t output_off
 
   // Need to fill pipeline before loop
   long long unsigned int vecLengthPipe = compiletime_info.vecLengthPipe;
-  ComplexInput *array_hp = context->array_h + input_offset;
+  ComplexInput *array_hp = context->array_h + context->input_offset;
   CUBE_ASYNC_COPY_CALL(array_d[0], array_hp, vecLengthPipe*sizeof(ComplexInput), cudaMemcpyHostToDevice, streams[0]);
   cudaEventRecord(copyCompletion[0], streams[0]); // record the completion of the h2d transfer
   checkCudaError();
@@ -778,7 +784,7 @@ int xgpuCudaXengine(XGPUContext *context, size_t input_offset, size_t output_off
 
   if(doDump) {
     //copy the data back, employing a similar strategy as above
-    CUBE_COPY_CALL(context->matrix_h + output_offset, internal->matrix_d, compiletime_info.matLength*sizeof(Complex), cudaMemcpyDeviceToHost);
+    CUBE_COPY_CALL(context->matrix_h + context->output_offset, internal->matrix_d, compiletime_info.matLength*sizeof(Complex), cudaMemcpyDeviceToHost);
     checkCudaError();
   }
 
