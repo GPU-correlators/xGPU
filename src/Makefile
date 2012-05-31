@@ -181,10 +181,19 @@ uninstall:
 tags:
 	ctags -R .
 
+show:
+	@echo NINPUTS=`expr 2 '*' $(NSTATION)`
+	@echo NSTATION=$(NSTATION)
+	@echo NFREQUENCY=$(NFREQUENCY)
+	@echo NTIME=$(NTIME)
+	@echo NTIME_PIPE=$(NTIME_PIPE)
+	@echo SHARED_ATOMIC_SIZE=$(SHARED_ATOMIC_SIZE)
+	@echo COMPLEX_BLOCK_SIZE=$(COMPLEX_BLOCK_SIZE)
+
 clean:
 	rm -f cuda_correlator libxgpu.so xgpuinfo
 	rm -f $(BINXGPU_OBJS) $(LIBXGPU_OBJS) cube/cube.o
 	rm -f $(DEPS)
 	rm -f tags
 
-.PHONY : all objs tags clean install uninstall
+.PHONY : all objs tags clean install uninstall show
