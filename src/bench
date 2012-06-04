@@ -31,5 +31,11 @@ make all OSTYPE=$OSTYPE "$@"
 exec 1>&3
 
 # Display results
-more cube_benchmark.log
-more cube_async_benchmark.log
+# Use less (or more) to page output if desired
+echo '==============================='
+echo 'xGPU Sizing Parameters'
+echo '==============================='
+make show OSTYPE=$OSTYPE "$@"
+echo
+cat cube_benchmark.log
+cat cube_async_benchmark.log
