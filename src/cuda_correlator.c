@@ -21,25 +21,33 @@ int main(int argc, char** argv) {
   int opt;
   int device = 0;
   unsigned int seed = 1;
+  int doDump = 1;
   int verbose = 0;
   XGPUInfo xgpu_info;
   unsigned int npol, nstation, nfrequency;
   int xgpu_error = 0;
   Complex *omp_matrix_h = NULL;
 
-  while ((opt = getopt(argc, argv, "d:hs:v:")) != -1) {
+  while ((opt = getopt(argc, argv, "d:hns:v:")) != -1) {
     switch (opt) {
       case 'd':
+        // Set CUDA device number
         device = strtoul(optarg, NULL, 0);
         break;
+      case 'n':
+        // Turn off dump (useful for benchmarking)
+        doDump = 0;
+        break;
       case 's':
+        // Set seed for random data
         seed = strtoul(optarg, NULL, 0);
         break;
       case 'v':
+        // Set verbosity level
         verbose = strtoul(optarg, NULL, 0);
         break;
       default: /* '?' */
-        fprintf(stderr, "Usage: %s [-d DEVNUM] [-s SEED] [-v 0|1|2|3]\n",
+        fprintf(stderr, "Usage: %s [-d DEVNUM] [-n] [-s SEED] [-v 0|1|2|3]\n",
             argv[0]);
         exit(EXIT_FAILURE);
     }
@@ -87,12 +95,15 @@ int main(int argc, char** argv) {
   }
 
 #if (CUBE_MODE == CUBE_DEFAULT)
-  printf("Calling CPU X-Engine\n");
-  xgpuOmpXengine(omp_matrix_h, array_h);
+  // Only call CPU X engine if dumping GPU X engine
+  if(doDump) {
+    printf("Calling CPU X-Engine\n");
+    xgpuOmpXengine(omp_matrix_h, array_h);
+  }
 #endif
 
   printf("Calling GPU X-Engine\n");
-  xgpu_error = xgpuCudaXengine(&context, 1);
+  xgpu_error = xgpuCudaXengine(&context, doDump);
   if(xgpu_error) {
     fprintf(stderr, "xgpuCudaXengine returned error code %d\n", xgpu_error);
     goto cleanup;
@@ -100,8 +111,12 @@ int main(int argc, char** argv) {
 
 #if (CUBE_MODE == CUBE_DEFAULT)
   
-  xgpuReorderMatrix(cuda_matrix_h);
-  xgpuCheckResult(cuda_matrix_h, omp_matrix_h, verbose, array_h);
+  if(doDump) {
+    xgpuReorderMatrix(cuda_matrix_h);
+    xgpuCheckResult(cuda_matrix_h, omp_matrix_h, verbose, array_h);
+  } else {
+    printf("Data not dumped (-n given); comparison with CPU X engine not done.\n");
+  }
 
 #if 0
   int fullMatLength = nfrequency * nstation*nstation*npol*npol;
