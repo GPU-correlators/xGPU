@@ -19,8 +19,10 @@
 int main(int argc, char** argv) {
 
   int opt;
+  int i;
   int device = 0;
   unsigned int seed = 1;
+  int count = 1;
   int doDump = 1;
   int verbose = 0;
   XGPUInfo xgpu_info;
@@ -28,8 +30,16 @@ int main(int argc, char** argv) {
   int xgpu_error = 0;
   Complex *omp_matrix_h = NULL;
 
-  while ((opt = getopt(argc, argv, "d:hns:v:")) != -1) {
+  while ((opt = getopt(argc, argv, "c:d:hns:v:")) != -1) {
     switch (opt) {
+      case 'c':
+        // Set number of time to call xgpuCudaXengine
+        count = strtoul(optarg, NULL, 0);
+        if(count < 1) {
+          fprintf(stderr, "count must be positive\n");
+          return 1;
+        }
+        break;
       case 'd':
         // Set CUDA device number
         device = strtoul(optarg, NULL, 0);
@@ -47,7 +57,7 @@ int main(int argc, char** argv) {
         verbose = strtoul(optarg, NULL, 0);
         break;
       default: /* '?' */
-        fprintf(stderr, "Usage: %s [-d DEVNUM] [-n] [-s SEED] [-v 0|1|2|3]\n",
+        fprintf(stderr, "Usage: %s [-c count] [-d DEVNUM] [-n] [-s SEED] [-v 0|1|2|3]\n",
             argv[0]);
         exit(EXIT_FAILURE);
     }
@@ -103,15 +113,23 @@ int main(int argc, char** argv) {
 #endif
 
   printf("Calling GPU X-Engine\n");
-  xgpu_error = xgpuCudaXengine(&context, doDump);
-  if(xgpu_error) {
-    fprintf(stderr, "xgpuCudaXengine returned error code %d\n", xgpu_error);
-    goto cleanup;
+  for(i=0; i<count; i++) {
+    xgpu_error = xgpuCudaXengine(&context, doDump);
+    if(xgpu_error) {
+      fprintf(stderr, "xgpuCudaXengine returned error code %d\n", xgpu_error);
+      goto cleanup;
+    }
   }
 
 #if (CUBE_MODE == CUBE_DEFAULT)
   
   if(doDump) {
+    if(count > 1) {
+      for(i=0; i<context.matrix_len/sizeof(Complex); i++) {
+        cuda_matrix_h[i].real /= count;
+        cuda_matrix_h[i].imag /= count;
+      }
+    }
     xgpuReorderMatrix(cuda_matrix_h);
     xgpuCheckResult(cuda_matrix_h, omp_matrix_h, verbose, array_h);
   } else {
