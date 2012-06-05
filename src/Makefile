@@ -104,6 +104,10 @@ ifeq ($(strip $(POWER_LOOP)), yes)
 NVCCFLAGS += -DPOWER_LOOP
 endif
 
+ifdef RUNTIME_STATS
+NVCCFLAGS += -DRUNTIME_STATS
+endif
+
 # Handle V=1 for verbose output
 ifneq "$V" "1"
 	VERBOSE=@

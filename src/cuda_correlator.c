@@ -31,6 +31,9 @@ int main(int argc, char** argv) {
   int xgpu_error = 0;
   Complex *omp_matrix_h = NULL;
   struct timespec start, stop;
+#ifdef RUNTIME_STATS
+  struct timespec tic, toc;
+#endif
 
   while ((opt = getopt(argc, argv, "c:d:hns:v:")) != -1) {
     switch (opt) {
@@ -120,11 +123,21 @@ int main(int argc, char** argv) {
   printf("Calling GPU X-Engine\n");
   clock_gettime(CLOCK_MONOTONIC, &start);
   for(i=0; i<count; i++) {
+#ifdef RUNTIME_STATS
+    clock_gettime(CLOCK_MONOTONIC, &tic);
+#endif
     xgpu_error = xgpuCudaXengine(&context, doDump);
+#ifdef RUNTIME_STATS
+    clock_gettime(CLOCK_MONOTONIC, &toc);
+#endif
     if(xgpu_error) {
       fprintf(stderr, "xgpuCudaXengine returned error code %d\n", xgpu_error);
       goto cleanup;
     }
+#ifdef RUNTIME_STATS
+    fprintf(stderr, "%11.6f  %11.6f ms\n",
+        ELAPSED_MS(start,tic), ELAPSED_MS(tic,toc));
+#endif
   }
   clock_gettime(CLOCK_MONOTONIC, &stop);
   printf("%11.6f ms total, %11.6f ms/call average\n",
