@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <math.h>
 #include <limits.h>
+#include <time.h>
 #include <unistd.h>
 #include <cube/cube.h>
 
@@ -29,6 +30,7 @@ int main(int argc, char** argv) {
   unsigned int npol, nstation, nfrequency;
   int xgpu_error = 0;
   Complex *omp_matrix_h = NULL;
+  struct timespec start, stop;
 
   while ((opt = getopt(argc, argv, "c:d:hns:v:")) != -1) {
     switch (opt) {
@@ -112,7 +114,11 @@ int main(int argc, char** argv) {
   }
 #endif
 
+#define ELAPSED_MS(start,stop) \
+  ((((int64_t)stop.tv_sec-start.tv_sec)*1000*1000*1000+(stop.tv_nsec-start.tv_nsec))/1e6)
+
   printf("Calling GPU X-Engine\n");
+  clock_gettime(CLOCK_MONOTONIC, &start);
   for(i=0; i<count; i++) {
     xgpu_error = xgpuCudaXengine(&context, doDump);
     if(xgpu_error) {
@@ -120,6 +126,9 @@ int main(int argc, char** argv) {
       goto cleanup;
     }
   }
+  clock_gettime(CLOCK_MONOTONIC, &stop);
+  printf("%11.6f ms total, %11.6f ms/call average\n",
+      ELAPSED_MS(start,stop), ELAPSED_MS(start,stop)/count);
 
 #if (CUBE_MODE == CUBE_DEFAULT)
   
