@@ -46,6 +46,8 @@ typedef struct XGPUInternalContextStruct {
 
   // used for overlapping comms and compute
   cudaStream_t streams[2];
+  cudaEvent_t copyCompletion[2];
+  cudaEvent_t kernelCompletion[2];
 
   // texture channel descriptor
   cudaChannelFormatDesc channelDesc;
@@ -460,6 +462,13 @@ int xgpuInit(XGPUContext *context, int device)
   for(int i=0; i<2; i++) cudaStreamCreate(&(internal->streams[i]));
   checkCudaError();
 
+  // create the events
+  for (int i=0; i<2; i++) {
+    cudaEventCreate(&(internal->kernelCompletion[i]));
+    cudaEventCreate(&(internal->copyCompletion[i]));
+  }
+  checkCudaError();
+
   internal->channelDesc = cudaCreateChannelDesc<COMPLEX_INPUT>();
 
 #if NPULSAR > 0
@@ -663,8 +672,11 @@ void xgpuFree(XGPUContext *context)
     //assign the device
     cudaSetDevice(internal->device);
 
-    for(int i=0; i<2; i++)
+    for(int i=0; i<2; i++) {
       cudaStreamDestroy(internal->streams[i]);
+      cudaEventDestroy(internal->copyCompletion[i]);
+      cudaEventDestroy(internal->kernelCompletion[i]);
+    }
 
     if(internal->free_array_h) {
       cudaFreeHost(internal->free_array_h);
@@ -705,6 +717,8 @@ int xgpuCudaXengine(XGPUContext *context, int doDump)
 
   ComplexInput **array_d = internal->array_d;
   cudaStream_t *streams = internal->streams;
+  cudaEvent_t *copyCompletion = internal->copyCompletion;
+  cudaEvent_t *kernelCompletion = internal->kernelCompletion;
   cudaChannelFormatDesc channelDesc = internal->channelDesc;
 
   // set pointers to the real and imaginary components of the device matrix
@@ -719,20 +733,14 @@ int xgpuCudaXengine(XGPUContext *context, int doDump)
   //allocated exactly as many thread blocks as are needed
   dim3 dimGrid(((Nblock/2+1)*(Nblock/2))/2, compiletime_info.nfrequency);
 
-  // Create events used to record the completion of the device-host transfer and kernels
-  // TODO Store in XGPUInternalContext and move to xInit()?
-  cudaEvent_t copyCompletion[2], kernelCompletion[2];
-  for (int i=0; i<2; i++) {
-    cudaEventCreate(&kernelCompletion[i]);
-    cudaEventCreate(&copyCompletion[i]);
-  }
-  checkCudaError();
-
   CUBE_ASYNC_START(ENTIRE_PIPELINE);
 
   // Need to fill pipeline before loop
   long long unsigned int vecLengthPipe = compiletime_info.vecLengthPipe;
   ComplexInput *array_hp = context->array_h + context->input_offset;
+  // Only start the transfer once the kernel has completed
+  // (no-op unless xgpuCudaXengine() is called back-to-back with doDump=0)
+  cudaStreamWaitEvent(streams[0], kernelCompletion[0], 0);
   CUBE_ASYNC_COPY_CALL(array_d[0], array_hp, vecLengthPipe*sizeof(ComplexInput), cudaMemcpyHostToDevice, streams[0]);
   cudaEventRecord(copyCompletion[0], streams[0]); // record the completion of the h2d transfer
   checkCudaError();
@@ -756,7 +764,7 @@ int xgpuCudaXengine(XGPUContext *context, int doDump)
     cudaStreamWaitEvent(streams[1], copyCompletion[(p+1)%2], 0); // only start the kernel once the h2d transfer is complete
     CUBE_ASYNC_KERNEL_CALL(shared2x2float2, dimGrid, dimBlock, 0, streams[1], 
 			   matrix_real_d, matrix_imag_d, NSTATION, writeMatrix);
-    cudaEventRecord(kernelCompletion[(p+1)%2], streams[1]); // record the completion of the h2d transfer
+    cudaEventRecord(kernelCompletion[(p+1)%2], streams[1]); // record the completion of the kernel
     checkCudaError();
 
     // Download next chunk of input data
@@ -780,21 +788,19 @@ int xgpuCudaXengine(XGPUContext *context, int doDump)
   cudaStreamWaitEvent(streams[1], copyCompletion[(PIPE_LENGTH+1)%2], 0);
   CUBE_ASYNC_KERNEL_CALL(shared2x2float2, dimGrid, dimBlock, 0, streams[1], matrix_real_d, matrix_imag_d,
 			 NSTATION, writeMatrix);
-  checkCudaError();
 
   if(doDump) {
+    checkCudaError();
     //copy the data back, employing a similar strategy as above
     CUBE_COPY_CALL(context->matrix_h + context->output_offset, internal->matrix_d, compiletime_info.matLength*sizeof(Complex), cudaMemcpyDeviceToHost);
+    checkCudaError();
+  } else {
+    // record the completion of the kernel for next call
+    cudaEventRecord(kernelCompletion[(PIPE_LENGTH+1)%2], streams[1]);
     checkCudaError();
   }
 
   CUBE_ASYNC_END(ENTIRE_PIPELINE);
-
-  for (int i=0; i<2; i++) {
-    cudaEventDestroy(copyCompletion[i]);
-    cudaEventDestroy(kernelCompletion[i]);
-  }
-  checkCudaError();
 
   return XGPU_OK;
 }
