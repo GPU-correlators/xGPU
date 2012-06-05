@@ -111,10 +111,8 @@ int main(int argc, char** argv) {
 
 #if (CUBE_MODE == CUBE_DEFAULT)
   // Only call CPU X engine if dumping GPU X engine
-  if(doDump) {
-    printf("Calling CPU X-Engine\n");
-    xgpuOmpXengine(omp_matrix_h, array_h);
-  }
+  printf("Calling CPU X-Engine\n");
+  xgpuOmpXengine(omp_matrix_h, array_h);
 #endif
 
 #define ELAPSED_MS(start,stop) \
@@ -126,7 +124,7 @@ int main(int argc, char** argv) {
 #ifdef RUNTIME_STATS
     clock_gettime(CLOCK_MONOTONIC, &tic);
 #endif
-    xgpu_error = xgpuCudaXengine(&context, doDump);
+    xgpu_error = xgpuCudaXengine(&context, doDump || i==count-1);
 #ifdef RUNTIME_STATS
     clock_gettime(CLOCK_MONOTONIC, &toc);
 #endif
@@ -145,18 +143,14 @@ int main(int argc, char** argv) {
 
 #if (CUBE_MODE == CUBE_DEFAULT)
   
-  if(doDump) {
-    if(count > 1) {
-      for(i=0; i<context.matrix_len/sizeof(Complex); i++) {
-        cuda_matrix_h[i].real /= count;
-        cuda_matrix_h[i].imag /= count;
-      }
+  if(count > 1) {
+    for(i=0; i<context.matrix_len/sizeof(Complex); i++) {
+      cuda_matrix_h[i].real /= count;
+      cuda_matrix_h[i].imag /= count;
     }
-    xgpuReorderMatrix(cuda_matrix_h);
-    xgpuCheckResult(cuda_matrix_h, omp_matrix_h, verbose, array_h);
-  } else {
-    printf("Data not dumped (-n given); comparison with CPU X engine not done.\n");
   }
+  xgpuReorderMatrix(cuda_matrix_h);
+  xgpuCheckResult(cuda_matrix_h, omp_matrix_h, verbose, array_h);
 
 #if 0
   int fullMatLength = nfrequency * nstation*nstation*npol*npol;
