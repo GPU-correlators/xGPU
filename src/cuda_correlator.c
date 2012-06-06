@@ -5,7 +5,7 @@
 #include <limits.h>
 #include <time.h>
 #include <unistd.h>
-#include <cube/cube.h>
+#include "cube/cube.h"
 
 #include "xgpu.h"
 

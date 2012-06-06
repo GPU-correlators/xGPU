@@ -214,9 +214,9 @@ CUBE_DEVICE(static void, write2x2, unsigned int &Col, unsigned int &Row, float4 
 
 // Use the appropriate shared memory load / store routines according to the atomic size
 #if SHARED_ATOMIC_SIZE == 4
-#include<shared_transfer_4.cuh>
+#include "shared_transfer_4.cuh"
 #elif SHARED_ATOMIC_SIZE == 8
-#include<shared_transfer_8.cuh>
+#include "shared_transfer_8.cuh"
 #else
 #error SHARED_ATOMIC_SIZE must be 4 or 8
 #endif
