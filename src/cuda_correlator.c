@@ -149,12 +149,13 @@ int main(int argc, char** argv) {
       goto cleanup;
     }
 #ifdef RUNTIME_STATS
-    fprintf(stderr, "%11.6f  %11.6f ms\n",
-        ELAPSED_MS(start,tic), ELAPSED_MS(tic,toc));
+    fprintf(stderr, "%11.6f  %11.6f ms%s\n",
+        ELAPSED_MS(start,tic), ELAPSED_MS(tic,toc),
+        i==count-1 ? " final" : "");
 #endif
   }
   clock_gettime(CLOCK_MONOTONIC, &stop);
-  printf("%11.6f ms total, %11.6f ms/call average\n",
+  printf("Elapsed time %.6f ms total, %.6f ms/call average\n",
       ELAPSED_MS(start,stop), ELAPSED_MS(start,stop)/count);
 
 #if (CUBE_MODE == CUBE_DEFAULT)
