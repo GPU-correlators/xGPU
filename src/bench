@@ -1,36 +1,37 @@
 #!/bin/bash
 # This is bench
 # Automatically benchmark cuda performance for the fxgpu repo
-# Usage: bench [-n] [MAKE_OPTIONS]
-#        -n, if given, is passed to cuda_correltor to inhibit dumping.
-# Output: Prints cube_benchmark.log to the screen with more
+# Usage: bench [-o SYNCOP] [MAKE_OPTIONS]
+#        if "-o SYNCOP" is given, SYNCOP is passed to cuda_correltor as syncOp
+# Output: Writes xGPU sizing info and cube_benchmark.log to stdout
 
 exec 3>&1
 exec 1>/dev/null
 exec 2>/dev/null
 
-doDump=
-if [ "${1}" == "-n" ]
+syncOp=1 # Dump
+if [ "${1}" == "-o" ]
 then
-  doDump="-n"
+  shift
+  syncOp=$1
   shift
 fi
 
 make clean
 make cuda_correlator CUBE_COUNT_MODE=1 OSTYPE=$OSTYPE "$@"
-./cuda_correlator $doDump
+./cuda_correlator -o $syncOp
 
 make clean
 make cuda_correlator CUBE_TIME_MODE=1 OSTYPE=$OSTYPE "$@"
-./cuda_correlator $doDump
+./cuda_correlator -o $syncOp
 
 make clean
 make cuda_correlator CUBE_ASYNC_COUNT_MODE=1 OSTYPE=$OSTYPE "$@"
-./cuda_correlator $doDump
+./cuda_correlator -o $syncOp
 
 make clean
 make cuda_correlator CUBE_ASYNC_TIME_MODE=1 OSTYPE=$OSTYPE "$@"
-./cuda_correlator $doDump
+./cuda_correlator -o $syncOp
 
 # Rebuild a non-benchmarking version
 make clean
