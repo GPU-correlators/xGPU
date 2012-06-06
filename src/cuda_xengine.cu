@@ -464,8 +464,8 @@ int xgpuInit(XGPUContext *context, int device)
 
   // create the events
   for (int i=0; i<2; i++) {
-    cudaEventCreate(&(internal->kernelCompletion[i]));
-    cudaEventCreate(&(internal->copyCompletion[i]));
+    cudaEventCreateWithFlags(&(internal->kernelCompletion[i]), cudaEventDisableTiming);
+    cudaEventCreateWithFlags(&(internal->copyCompletion[i]), cudaEventDisableTiming);
   }
   checkCudaError();
 
