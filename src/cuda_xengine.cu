@@ -591,9 +591,9 @@ int xgpuSetHostInputBuffer(XGPUContext *context)
     checkCudaError();
   } else {
     // allocate host memory
-    context->array_len = compiletime_info.vecLength*sizeof(ComplexInput);
+    context->array_len = compiletime_info.vecLength;
     CLOCK_GETTIME(CLOCK_MONOTONIC, &a);
-    cudaMallocHost(&(context->array_h), context->array_len);
+    cudaMallocHost(&(context->array_h), context->array_len*sizeof(ComplexInput));
     CLOCK_GETTIME(CLOCK_MONOTONIC, &b);
     PRINT_ELAPASED("cudaMallocHost", ELAPSED_NS(a,b));
     internal->free_array_h = context->array_h;
@@ -650,8 +650,8 @@ int xgpuSetHostOutputBuffer(XGPUContext *context)
     checkCudaError();
   } else {
     // allocate host memory
-    context->matrix_len = compiletime_info.matLength*sizeof(Complex);
-    cudaMallocHost(&(context->matrix_h), context->matrix_len);
+    context->matrix_len = compiletime_info.matLength;
+    cudaMallocHost(&(context->matrix_h), context->matrix_len*sizeof(Complex));
     internal->free_matrix_h = context->matrix_h;
     internal->unregister_matrix_h = NULL;
     checkCudaError();

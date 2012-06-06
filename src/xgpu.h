@@ -80,9 +80,9 @@ typedef struct XGPUContextStruct {
   ComplexInput *array_h;
   Complex *matrix_h;
 
-  // Size of memory buffers on host;
-  size_t array_len;
-  size_t matrix_len;
+  // Size of memory buffers on host
+  size_t array_len;  // in units of sizeof(ComplexInput)
+  size_t matrix_len; // in units of sizeof(Complex)
 
   // Offsets into memory buffers on host.  When calling xgpuSetHostInputBuffer
   // or xgpuSetHostOutputBuffer (or functions that call them such as xgpuInit),

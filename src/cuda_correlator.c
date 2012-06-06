@@ -144,7 +144,7 @@ int main(int argc, char** argv) {
 #if (CUBE_MODE == CUBE_DEFAULT)
   
   if(count > 1) {
-    for(i=0; i<context.matrix_len/sizeof(Complex); i++) {
+    for(i=0; i<context.matrix_len; i++) {
       cuda_matrix_h[i].real /= count;
       cuda_matrix_h[i].imag /= count;
     }
