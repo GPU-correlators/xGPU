@@ -706,7 +706,7 @@ void xgpuFree(XGPUContext *context)
   CUBE_WRITE();
 }
 
-int xgpuCudaXengine(XGPUContext *context, int doDump)
+int xgpuCudaXengine(XGPUContext *context, int syncOp)
 {
   XGPUInternalContext *internal = (XGPUInternalContext *)context->internal;
   if(!internal) {
@@ -738,8 +738,9 @@ int xgpuCudaXengine(XGPUContext *context, int doDump)
   // Need to fill pipeline before loop
   long long unsigned int vecLengthPipe = compiletime_info.vecLengthPipe;
   ComplexInput *array_hp = context->array_h + context->input_offset;
-  // Only start the transfer once the kernel has completed
-  // (no-op unless xgpuCudaXengine() is called back-to-back with doDump=0)
+  // Only start the transfer once the kernel has completed processing input
+  // buffer 0.  This is a no-op unless previous call to xgpuCudaXengine() had
+  // SYNCOP_NONE or SYNCOP_SYNC_TRANSFER.
   cudaStreamWaitEvent(streams[0], kernelCompletion[0], 0);
   CUBE_ASYNC_COPY_CALL(array_d[0], array_hp, vecLengthPipe*sizeof(ComplexInput), cudaMemcpyHostToDevice, streams[0]);
   cudaEventRecord(copyCompletion[0], streams[0]); // record the completion of the h2d transfer
@@ -789,15 +790,23 @@ int xgpuCudaXengine(XGPUContext *context, int doDump)
   CUBE_ASYNC_KERNEL_CALL(shared2x2float2, dimGrid, dimBlock, 0, streams[1], matrix_real_d, matrix_imag_d,
 			 NSTATION, writeMatrix);
 
-  if(doDump) {
+  if(syncOp == SYNCOP_DUMP) {
     checkCudaError();
     //copy the data back, employing a similar strategy as above
     CUBE_COPY_CALL(context->matrix_h + context->output_offset, internal->matrix_d, compiletime_info.matLength*sizeof(Complex), cudaMemcpyDeviceToHost);
     checkCudaError();
+  } else if(syncOp == SYNCOP_SYNC_COMPUTE) {
+    // Synchronize on the compute stream (i.e. wait for it to complete)
+    cudaStreamSynchronize(streams[1]);
   } else {
-    // record the completion of the kernel for next call
-    cudaEventRecord(kernelCompletion[(PIPE_LENGTH+1)%2], streams[1]);
-    checkCudaError();
+      // record the completion of the kernel for next call
+      cudaEventRecord(kernelCompletion[(PIPE_LENGTH+1)%2], streams[1]);
+      checkCudaError();
+
+      if(syncOp == SYNCOP_SYNC_TRANSFER) {
+        // Synchronize on the transfer stream (i.e. wait for it to complete)
+        cudaStreamSynchronize(streams[0]);
+      }
   }
 
   CUBE_ASYNC_END(ENTIRE_PIPELINE);

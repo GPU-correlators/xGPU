@@ -103,6 +103,12 @@ typedef struct XGPUContextStruct {
 #define XGPU_INSUFFICIENT_TEXTURE_MEMORY (3)
 #define XGPU_NOT_INITIALIZED             (4)
 
+// Values for xgpuCudaXengine's syncOp parameter
+#define SYNCOP_NONE           0
+#define SYNCOP_DUMP           1
+#define SYNCOP_SYNC_TRANSFER  2
+#define SYNCOP_SYNC_COMPUTE   3
+
 // Functions in cuda_xengine.cu
 
 // Get pointer to library version string.
@@ -171,9 +177,19 @@ int xgpuSetHostOutputBuffer(XGPUContext *context);
 void xgpuFree(XGPUContext *context);
 
 // Perform correlation.  Correlates the input data at (context->array_h +
-// context->input_offset).  If doDump is non-zero, copy output data back to
-// host at (context->matrix_h + context->output_offset).
-int xgpuCudaXengine(XGPUContext *context, int doDump);
+// context->input_offset).  The syncOp parameter specifies what will be done
+// after sending all the asynchronous tasks to CUDA.  The possible values and
+// their meanings are:
+//
+// SYNCOP_NONE - No further action is taken.
+// SYNCOP_DUMP - Waits for all transfers and computations to
+//               complete, then dumps to output buffer at
+//               "context->matrix_h + context->output_offset".
+// SYNCOP_SYNC_TRANSFER - Waits for all transfers to complete,
+//                        but not necessrily all computations.
+// SYNCOP_SYNC_COMPUTE  - Waits for all computations (and transfers) to
+//                        complete, but does not dump.
+int xgpuCudaXengine(XGPUContext *context, int syncOp);
 
 // Functions in cpu_util.cc
 

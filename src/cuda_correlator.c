@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
   int device = 0;
   unsigned int seed = 1;
   int count = 1;
-  int doDump = 1;
+  int syncOp = 1;
   int verbose = 0;
   int hostAlloc = 0;
   XGPUInfo xgpu_info;
@@ -36,7 +36,7 @@ int main(int argc, char** argv) {
   struct timespec tic, toc;
 #endif
 
-  while ((opt = getopt(argc, argv, "c:d:hnrs:v:")) != -1) {
+  while ((opt = getopt(argc, argv, "c:d:hno:rs:v:")) != -1) {
     switch (opt) {
       case 'c':
         // Set number of time to call xgpuCudaXengine
@@ -51,8 +51,12 @@ int main(int argc, char** argv) {
         device = strtoul(optarg, NULL, 0);
         break;
       case 'n':
-        // Turn off dump (useful for benchmarking)
-        doDump = 0;
+        // Turn off dump and sync (useful for benchmarking)
+        syncOp = SYNCOP_NONE;
+        break;
+      case 'o':
+        // Set syncOp
+        syncOp = strtoul(optarg, NULL, 0);
         break;
       case 'r':
         // Register host allocated memory
@@ -136,7 +140,7 @@ int main(int argc, char** argv) {
 #ifdef RUNTIME_STATS
     clock_gettime(CLOCK_MONOTONIC, &tic);
 #endif
-    xgpu_error = xgpuCudaXengine(&context, doDump || i==count-1);
+    xgpu_error = xgpuCudaXengine(&context, i==count-1 ? SYNCOP_DUMP : syncOp);
 #ifdef RUNTIME_STATS
     clock_gettime(CLOCK_MONOTONIC, &toc);
 #endif
