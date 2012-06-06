@@ -26,6 +26,7 @@ int main(int argc, char** argv) {
   int count = 1;
   int doDump = 1;
   int verbose = 0;
+  int hostAlloc = 0;
   XGPUInfo xgpu_info;
   unsigned int npol, nstation, nfrequency;
   int xgpu_error = 0;
@@ -35,7 +36,7 @@ int main(int argc, char** argv) {
   struct timespec tic, toc;
 #endif
 
-  while ((opt = getopt(argc, argv, "c:d:hns:v:")) != -1) {
+  while ((opt = getopt(argc, argv, "c:d:hnrs:v:")) != -1) {
     switch (opt) {
       case 'c':
         // Set number of time to call xgpuCudaXengine
@@ -52,6 +53,10 @@ int main(int argc, char** argv) {
       case 'n':
         // Turn off dump (useful for benchmarking)
         doDump = 0;
+        break;
+      case 'r':
+        // Register host allocated memory
+        hostAlloc = 1;
         break;
       case 's':
         // Set seed for random data
@@ -88,8 +93,15 @@ int main(int argc, char** argv) {
 
   // allocate the GPU X-engine memory
   XGPUContext context;
-  context.array_h = NULL;
-  context.matrix_h = NULL;
+  if(hostAlloc) {
+    context.array_len = xgpu_info.vecLength;
+    context.matrix_len = xgpu_info.matLength;
+    context.array_h = malloc(context.array_len*sizeof(ComplexInput));
+    context.matrix_h = malloc(context.matrix_len*sizeof(Complex));
+  } else {
+    context.array_h = NULL;
+    context.matrix_h = NULL;
+  }
   xgpu_error = xgpuInit(&context, device);
   if(xgpu_error) {
     fprintf(stderr, "xgpuInit returned error code %d\n", xgpu_error);
@@ -169,6 +181,11 @@ cleanup:
 
   // free gpu memory
   xgpuFree(&context);
+
+  if(hostAlloc) {
+    free(context.array_h);
+    free(context.matrix_h);
+  }
 
   return xgpu_error;
 }
