@@ -73,7 +73,23 @@ int main(int argc, char** argv) {
         verbose = strtoul(optarg, NULL, 0);
         break;
       default: /* '?' */
-        fprintf(stderr, "Usage: %s [-c count] [-d DEVNUM] [-n] [-s SEED] [-v 0|1|2|3]\n",
+        fprintf(stderr,
+            "Usage: %s [options]\n"
+            "Options:\n"
+            "  -c COUNT          How many times to call xgpuCudaXengine [1]\n"
+            "  -d DEVNUM         GPU device to use [0]\n"
+            "  -f FINAL_SYNCOP   Sync operation for final call [1]\n"
+            "  -o SYNCOP         Sync operation for all but final call [1]\n"
+            "                    Sync operation values are:\n"
+            "                         0 (no sync)\n"
+            "                         1 (sync and dump)\n"
+            "                         2 (sync host to device transfer)\n"
+            "                         3 (sync kernel computations)\n"
+            "  -r                Register host allocated memory [false]\n"
+            "                    (otherwise use CUDA allocated memory)\n"
+            "  -s SEED           Random number seed [1]\n"
+            "  -v {0|1|2|3}      Verbosity level (debug only) [0]\n"
+            "  -h                Show this message\n",
             argv[0]);
         exit(EXIT_FAILURE);
     }
