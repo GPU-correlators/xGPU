@@ -32,6 +32,7 @@ int main(int argc, char** argv) {
   int xgpu_error = 0;
   Complex *omp_matrix_h = NULL;
   struct timespec start, stop;
+  double total, per_call, max_bw;
 #ifdef RUNTIME_STATS
   struct timespec tic, toc;
 #endif
@@ -155,8 +156,15 @@ int main(int argc, char** argv) {
 #endif
   }
   clock_gettime(CLOCK_MONOTONIC, &stop);
-  printf("Elapsed time %.6f ms total, %.6f ms/call average\n",
-      ELAPSED_MS(start,stop), ELAPSED_MS(start,stop)/count);
+  total = ELAPSED_MS(start,stop);
+  per_call = total/count;
+  // per_spectrum = per_call / NTIME
+  // per_channel = per_spectrum / NFREQUENCY
+  //             = per_call / (NTIME * NFREQUENCY)
+  // max_bw (kHz)  = 1 / per_channel = (NTIME * NFREQUENCY) / per_call
+  max_bw = xgpu_info.ntime*xgpu_info.nfrequency/per_call/1000; // MHz
+  printf("Elapsed time %.6f ms total, %.6f ms/call average, theoretical max BW %.3f MHz\n",
+      total, per_call, max_bw);
 
 #if (CUBE_MODE == CUBE_DEFAULT)
   
