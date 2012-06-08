@@ -169,8 +169,9 @@ objs: $(BINXGPU_OBJS) $(LIBXGPU_OBJS)
 	rm -f $*.P
 	$(NVCC) $(NVCCFLAGS) $(CFLAGS) -c -o $@ $<
 
-install: xgpuinfo $(LIBXGPU)
+install: cuda_correlator xgpuinfo $(LIBXGPU)
 	mkdir -p $(bindir)
+	cp cuda_correlator $(bindir)
 	cp xgpuinfo $(bindir)
 	mkdir -p $(includedir)
 	cp xgpu.h $(includedir)
