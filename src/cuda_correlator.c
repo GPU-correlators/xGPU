@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
   int xgpu_error = 0;
   Complex *omp_matrix_h = NULL;
   struct timespec outer_start, start, stop, outer_stop;
-  double total, per_call, max_bw;
+  double total, per_call, max_bw, gbps;
 #ifdef RUNTIME_STATS
   struct timespec tic, toc;
 #endif
@@ -192,8 +192,11 @@ int main(int argc, char** argv) {
     //             = per_call / (NTIME * NFREQUENCY)
     // max_bw (kHz)  = 1 / per_channel = (NTIME * NFREQUENCY) / per_call
     max_bw = xgpu_info.ntime*xgpu_info.nfrequency/per_call/1000; // MHz
-    printf("Elapsed time %.6f ms, %.6f ms/call, max BW %.3f MHz\n",
-        total, per_call, max_bw);
+    gbps = ((float)(8 * context.array_len * sizeof(ComplexInput) * count)) / total / 1e6; // Gbps
+    printf("Elapsed time %.6f ms total, %.6f ms/call average\n",
+        total, per_call);
+    printf("Theoretical BW_max %.3f MHz, throughput %.3f Gbps\n",
+        max_bw, gbps);
   }
   if(outer_count > 1) {
     clock_gettime(CLOCK_MONOTONIC, &outer_stop);
@@ -204,8 +207,11 @@ int main(int argc, char** argv) {
     //             = per_call / (NTIME * NFREQUENCY)
     // max_bw (kHz)  = 1 / per_channel = (NTIME * NFREQUENCY) / per_call
     max_bw = xgpu_info.ntime*xgpu_info.nfrequency/per_call/1000; // MHz
-    printf("Elapsed time %.6f ms, %.6f ms/call, max BW %.3f MHz [overall]\n",
-        total, per_call, max_bw);
+    gbps = ((float)(8 * context.array_len * sizeof(ComplexInput) * count * outer_count)) / total / 1e6; // Gbps
+    printf("Elapsed time %.6f ms total, %.6f ms/call average\n",
+        total, per_call);
+    printf("Theoretical BW_max %.3f MHz, throughput %.3f Gbps\n",
+        max_bw, gbps);
   }
 
 #if (CUBE_MODE == CUBE_DEFAULT)
