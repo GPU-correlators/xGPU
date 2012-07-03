@@ -25,7 +25,7 @@ int main(int argc, char** argv) {
   unsigned int seed = 1;
   int outer_count = 1;
   int count = 1;
-  int syncOp = SYNCOP_DUMP;
+  int syncOp = SYNCOP_SYNC_TRANSFER;
   int finalSyncOp = SYNCOP_DUMP;
   int verbose = 0;
   int hostAlloc = 0;
