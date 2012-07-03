@@ -155,8 +155,10 @@ int main(int argc, char** argv) {
 
 #if (CUBE_MODE == CUBE_DEFAULT)
   // Only call CPU X engine if dumping GPU X engine
-  printf("Calling CPU X-Engine\n");
-  xgpuOmpXengine(omp_matrix_h, array_h);
+  if(finalSyncOp == SYNCOP_DUMP) {
+    printf("Calling CPU X-Engine\n");
+    xgpuOmpXengine(omp_matrix_h, array_h);
+  }
 #endif
 
 #define ELAPSED_MS(start,stop) \
@@ -216,14 +218,17 @@ int main(int argc, char** argv) {
 
 #if (CUBE_MODE == CUBE_DEFAULT)
   
-  if(count*outer_count > 1) {
-    for(i=0; i<context.matrix_len; i++) {
-      cuda_matrix_h[i].real /= count*outer_count;
-      cuda_matrix_h[i].imag /= count*outer_count;
+  // Only compare CPU and GPU X engines if dumping GPU X engine
+  if(finalSyncOp == SYNCOP_DUMP) {
+    if(count*outer_count > 1) {
+      for(i=0; i<context.matrix_len; i++) {
+        cuda_matrix_h[i].real /= count*outer_count;
+        cuda_matrix_h[i].imag /= count*outer_count;
+      }
     }
+    xgpuReorderMatrix(cuda_matrix_h);
+    xgpuCheckResult(cuda_matrix_h, omp_matrix_h, verbose, array_h);
   }
-  xgpuReorderMatrix(cuda_matrix_h);
-  xgpuCheckResult(cuda_matrix_h, omp_matrix_h, verbose, array_h);
 
 #if 0
   int fullMatLength = nfrequency * nstation*nstation*npol*npol;
