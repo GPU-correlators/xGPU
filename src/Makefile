@@ -74,6 +74,11 @@ ifdef COMPLEX_BLOCK_SIZE
 NVCCFLAGS += -DCOMPLEX_BLOCK_SIZE=$(COMPLEX_BLOCK_SIZE)
 endif
 
+ifdef MULTIPLY_MODE
+NVCCFLAGS += -DMULTIPLY_MODE=$(MULTIPLY_MODE)
+endif
+
+
 ################################
 # Benchmarking variable handlers
 ################################
@@ -193,6 +198,7 @@ show:
 	@echo NTIME_PIPE=$(NTIME_PIPE)
 	@echo SHARED_ATOMIC_SIZE=$(SHARED_ATOMIC_SIZE)
 	@echo COMPLEX_BLOCK_SIZE=$(COMPLEX_BLOCK_SIZE)
+	@echo MULTIPLY_MODE=$(MULTIPLY_MODE)
 
 clean:
 	rm -f cuda_correlator libxgpu.so xgpuinfo

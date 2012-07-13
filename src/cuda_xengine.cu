@@ -118,6 +118,7 @@ __device__ static void operator+=( float4 &a, const float4 b ) {
  a = t;
 }
 
+#if (MULTIPLY_MODE == 0)
 // device function to write out the matrix elements
 CUBE_DEVICE(static void, write2x2, unsigned int &Col, unsigned int &Row, float4 *matrix_real, float4 *matrix_imag, 
 	    float sum11XXreal, float sum11XXimag, float sum11XYreal, float sum11XYimag,
@@ -204,6 +205,103 @@ CUBE_DEVICE(static void, write2x2, unsigned int &Col, unsigned int &Row, float4 
 
 }
 
+#elif (MULTIPLY_MODE == 1 || MULTIPLY_MODE == 2) //For both GAUSS Method
+// device function to write out the matrix elements
+  CUBE_DEVICE(static void, write2x2, unsigned int &Col, unsigned int &Row, float4 *matrix_real, float4 *matrix_imag, 
+	    float sum11XXk1, float sum11XXk2, float sum11XXk3, float sum11XYk1, float sum11XYk2, float sum11XYk3,
+	    float sum11YXk1, float sum11YXk2, float sum11YXk3, float sum11YYk1, float sum11YYk2, float sum11YYk3,
+	    float sum12XXk1, float sum12XXk2, float sum12XXk3, float sum12XYk1, float sum12XYk2, float sum12XYk3,
+	    float sum12YXk1, float sum12YXk2, float sum12YXk3, float sum12YYk1, float sum12YYk2, float sum12YYk3,
+	    float sum21XXk1, float sum21XXk2, float sum21XXk3, float sum21XYk1, float sum21XYk2, float sum21XYk3,
+	    float sum21YXk1, float sum21YXk2, float sum21YXk3, float sum21YYk1, float sum21YYk2, float sum21YYk3,
+	    float sum22XXk1, float sum22XXk2, float sum22XXk3, float sum22XYk1, float sum22XYk2, float sum22XYk3,
+	    float sum22YXk1, float sum22YXk2, float sum22YXk3, float sum22YYk1, float sum22YYk2, float sum22YYk3) {
+  
+  int f=blockIdx.y;
+
+#if (MATRIX_ORDER == REGISTER_TILE_TRIANGULAR_ORDER) // write out the register tiles separately
+  matrix_real[f*4*REG_TILE_NBASELINE + REG_TILE_NBASELINE*0 + (Row*(Row+1)/2) + Col] += 
+    make_float4(SCALE*(sum11XXk1 - sum11XXk3), SCALE*(sum11XYk1 - sum11XYk3), SCALE*(sum11YXk1 - sum11YXk3), SCALE*(sum11YYk1 - sum11YYk3));
+  matrix_imag[f*4*REG_TILE_NBASELINE + REG_TILE_NBASELINE*0 + (Row*(Row+1)/2) + Col] += 
+    make_float4(SCALE*(sum11XXk1 + sum11XXk2), SCALE*(sum11XYk1 + sum11XYk2), SCALE*(sum11YXk1 + sum11YXk2), SCALE*(sum11YYk1 + sum11YYk2));
+
+  matrix_real[f*4*REG_TILE_NBASELINE + REG_TILE_NBASELINE*1 + (Row*(Row+1)/2) + Col] += 
+    make_float4(SCALE*(sum21XXk1 - sum21XXk3), SCALE*(sum21XYk1 - sum21XXk3), SCALE*(sum21YXk1 - sum21YXk3), SCALE*(sum21YYk1 - sum21YYk3));
+  matrix_imag[f*4*REG_TILE_NBASELINE + REG_TILE_NBASELINE*1 + (Row*(Row+1)/2) + Col] += 
+    make_float4(SCALE*(sum21XXk1 + sum21XXk2), SCALE*(sum21XYk1 + sum21XYk2), SCALE*(sum21YXk1 + sum21YXk2), SCALE*(sum21YYk1 + sum21YYk2));
+
+  matrix_real[f*4*REG_TILE_NBASELINE + REG_TILE_NBASELINE*3 + (Row*(Row+1)/2) + Col] += 
+    make_float4(SCALE*(sum22XXk1 - sum22XXk3), SCALE*(sum22XYk1 - sum22XYk3), SCALE*(sum22YXk1 - sum22YXk3), SCALE*(sum22YYk1 - sum22YYk3));
+  matrix_imag[f*4*REG_TILE_NBASELINE + REG_TILE_NBASELINE*3 + (Row*(Row+1)/2) + Col] += 
+    make_float4(SCALE*(sum22XXk1 + sum22XXk2), SCALE*(sum22XYk1 + sum22XYk2), SCALE*(sum22YXk1 + sum22YXk2), SCALE*(sum22YYk1 + sum22YYk2));
+  
+  // Test if entire tile needs to be written or just 3 of 4 parts (exclude top-right)
+  // Test if entire tile needs to be written or just 3 of 4 parts (exclude top-right)
+  if (Col<Row) {
+    matrix_real[f*4*REG_TILE_NBASELINE + REG_TILE_NBASELINE*2 + (Row*(Row+1)/2) + Col] += 
+      make_float4(SCALE*(sum12XXk1 - sum12XXk3), SCALE*(sum12XYk1 - sum12XYk3), SCALE*(sum12YXk1 - sum12YXk3), SCALE*(sum12YYk1 - sum12YYk3));
+    matrix_imag[f*4*REG_TILE_NBASELINE + REG_TILE_NBASELINE*2 + (Row*(Row+1)/2) + Col] += 
+      make_float4(SCALE*(sum12XXk1 + sum12XXk2), SCALE*(sum12XYk1 + sum12XYk2), SCALE*(sum12YXk1 + sum12YXk2), SCALE*(sum12YYk1 + sum12YYk2));
+  }
+#elif (MATRIX_ORDER == REAL_IMAG_TRIANGULAR_ORDER) // write out the real and imaginary components separately
+  Col*=2; Row*=2;
+  matrix_real[f*NBASELINE + (Row*(Row+1)/2) + Col] += 
+    make_float4(SCALE*sum11XXreal, SCALE*sum11XYreal, SCALE*sum11YXreal, SCALE*sum11YYreal);
+  matrix_imag[f*NBASELINE + (Row*(Row+1)/2) + Col] += 
+    make_float4(SCALE*sum11XXimag, SCALE*sum11XYimag, SCALE*sum11YXimag, SCALE*sum11YYimag);
+
+  matrix_real[f*NBASELINE + ((Row+1)*(Row+2)/2) + Col] += 
+    make_float4(SCALE*sum21XXreal, SCALE*sum21XYreal, SCALE*sum21YXreal, SCALE*sum21YYreal);
+  matrix_imag[f*NBASELINE + ((Row+1)*(Row+2)/2) + Col] += 
+    make_float4(SCALE*sum21XXimag, SCALE*sum21XYimag, SCALE*sum21YXimag, SCALE*sum21YYimag);
+
+  matrix_real[f*NBASELINE + ((Row+1)*(Row+2)/2) + (Col+1)] += 
+    make_float4(SCALE*sum22XXreal, SCALE*sum22XYreal, SCALE*sum22YXreal, SCALE*sum22YYreal);
+  matrix_imag[f*NBASELINE + ((Row+1)*(Row+2)/2) + (Col+1)] += 
+    make_float4(SCALE*sum22XXimag, SCALE*sum22XYimag, SCALE*sum22YXimag, SCALE*sum22YYimag);
+  
+  // Test if entire tile needs to be written or just 3 of 4 parts (exclude top-right)
+  if (Col<Row) {
+    matrix_real[f*NBASELINE + (Row*(Row+1)/2) + (Col+1)] += 
+      make_float4(SCALE*sum12XXreal, SCALE*sum12XYreal, SCALE*sum12YXreal, SCALE*sum12YYreal);
+    matrix_imag[f*NBASELINE + (Row*(Row+1)/2) + (Col+1)] += 
+      make_float4(SCALE*sum12XXimag, SCALE*sum12XYimag, SCALE*sum12YXimag, SCALE*sum12YYimag);
+  }
+#else  // standard triangular packed order
+  Col*=2; Row*=2;
+  matrix_real[(f*NBASELINE + (Row*(Row+1)/2) + Col)*NPOL + 0] += 
+    make_float4(SCALE*sum11XXreal, SCALE*sum11XXimag, SCALE*sum11XYreal, SCALE*sum11XYimag);
+  matrix_real[(f*NBASELINE + (Row*(Row+1)/2) + Col)*NPOL + 1] += 
+    make_float4(SCALE*sum11YXreal, SCALE*sum11YXimag, SCALE*sum11YYreal, SCALE*sum11YYimag);
+  matrix_real[(f*NBASELINE + ((Row+1)*(Row+2)/2) + Col)*NPOL + 0] += 
+    make_float4(SCALE*sum21XXreal, SCALE*sum21XXimag, SCALE*sum21XYreal, SCALE*sum21XYimag);
+  matrix_real[(f*NBASELINE + ((Row+1)*(Row+2)/2) + Col)*NPOL + 1] += 
+    make_float4(SCALE*sum21YXreal, SCALE*sum21YXimag, SCALE*sum21YYreal, SCALE*sum21YYimag);
+  matrix_real[(f*NBASELINE + ((Row+1)*(Row+2)/2) + (Col+1))*NPOL + 0] += 
+    make_float4(SCALE*sum22XXreal, SCALE*sum22XXimag, SCALE*sum22XYreal, SCALE*sum22XYimag);
+  matrix_real[(f*NBASELINE + ((Row+1)*(Row+2)/2) + (Col+1))*NPOL + 1] += 
+    make_float4(SCALE*sum22YXreal, SCALE*sum22YXimag, SCALE*sum22YYreal, SCALE*sum22YYimag);
+  
+  // Test if entire tile needs to be written or just 3 of 4 parts (exclude top-right)
+  if (Col<Row) {
+    matrix_real[(f*NBASELINE + (Row*(Row+1)/2) + (Col+1))*NPOL + 0] += 
+      make_float4(SCALE*sum12XXreal, SCALE*sum12XXimag, SCALE*sum12XYreal, SCALE*sum12XYimag);
+    matrix_real[(f*NBASELINE + (Row*(Row+1)/2) + (Col+1))*NPOL + 1] += 
+      make_float4(SCALE*sum12YXreal, SCALE*sum12YXimag, SCALE*sum12YYreal, SCALE*sum12YYimag);
+  }
+
+#endif
+}
+
+#endif
+
+
+
+
+
+
+
+
 #ifndef COMPLEX_BLOCK_SIZE
 #define COMPLEX_BLOCK_SIZE 1
 #endif
@@ -238,6 +336,7 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
 
   //declare shared memory for input coalescing
 
+#if ((MULTIPLY_MODE == 0)||(MULTIPLY_MODE == 1))
 #if SHARED_ATOMIC_SIZE == 4
   __shared__ float input[2][16*TILE_WIDTH]; // 4* for float4, 4* for 2x2 tile size
   float *input0_p = input[0] + tid;
@@ -248,6 +347,23 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
   float2 *input1_p = input[1] + tid;
 #endif
 
+#elif MULTIPLY_MODE == 2
+#if SHARED_ATOMIC_SIZE == 4
+  __shared__ float input[2][24*TILE_WIDTH]; // 4* for float4, 4* for 2x2 tile size
+  float *input0_p = input[0] + tid;
+  float *input1_p = input[1] + tid;
+#else
+  __shared__ float2 input[2][8*TILE_WIDTH]; // 2* for float4/float2, 4* for 2x2 tile size
+  float2 *input0_p = input[0] + tid;
+  float2 *input1_p = input[1] + tid;
+#endif
+
+#endif
+
+
+
+
+#if MULTIPLY_MODE == 0
   //instantiate sum variables
   float sum11XXreal = 0.0, sum11XXimag = 0.0;
   float sum11XYreal = 0.0, sum11XYimag = 0.0;
@@ -266,7 +382,31 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
   float sum22YXreal = 0.0, sum22YXimag = 0.0;
   float sum22YYreal = 0.0, sum22YYimag = 0.0;
 
-#if SHARED_ATOMIC_SIZE == 8
+#elif (MULTIPLY_MODE == 1 || MULTIPLY_MODE == 2)
+  //instantiate sum variables
+  float sum11XXk1 = 0.0, sum11XXk2 = 0.0, sum11XXk3 = 0.0;
+  float sum11XYk1 = 0.0, sum11XYk2 = 0.0, sum11XYk3 = 0.0;
+  float sum11YXk1 = 0.0, sum11YXk2 = 0.0, sum11YXk3 = 0.0;
+  float sum11YYk1 = 0.0, sum11YYk2 = 0.0, sum11YYk3 = 0.0;
+  float sum12XXk1 = 0.0, sum12XXk2 = 0.0, sum12XXk3 = 0.0;
+  float sum12XYk1 = 0.0, sum12XYk2 = 0.0, sum12XYk3 = 0.0;
+  float sum12YXk1 = 0.0, sum12YXk2 = 0.0, sum12YXk3 = 0.0;
+  float sum12YYk1 = 0.0, sum12YYk2 = 0.0, sum12YYk3 = 0.0;
+  float sum21XXk1 = 0.0, sum21XXk2 = 0.0, sum21XXk3 = 0.0;
+  float sum21XYk1 = 0.0, sum21XYk2 = 0.0, sum21XYk3 = 0.0;
+  float sum21YXk1 = 0.0, sum21YXk2 = 0.0, sum21YXk3 = 0.0;
+  float sum21YYk1 = 0.0, sum21YYk2 = 0.0, sum21YYk3 = 0.0;
+  float sum22XXk1 = 0.0, sum22XXk2 = 0.0, sum22XXk3 = 0.0;
+  float sum22XYk1 = 0.0, sum22XYk2 = 0.0, sum22XYk3 = 0.0;
+  float sum22YXk1 = 0.0, sum22YXk2 = 0.0, sum22YXk3 = 0.0;
+  float sum22YYk1 = 0.0, sum22YYk2 = 0.0, sum22YYk3 = 0.0;
+#endif
+
+
+
+
+
+#if SHRED_ATOMIC_SIZE == 8
 #if COMPLEX_BLOCK_SIZE != 1
 #error COMPLEX_BLOCK_SIZE must be 1 for SHARED_ATOMIC_SIZE == 8 (for now)
 #endif
@@ -323,6 +463,8 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
 #ifdef WRITE_OPTION
   if (write) {
 #endif
+
+#if MULTIPLY_MODE == 0
     CUBE_DEVICE_CALL(write2x2, Col, Row, matrix_real, matrix_imag,
 		     sum11XXreal, sum11XXimag, sum11XYreal, sum11XYimag, 
 		     sum11YXreal, sum11YXimag, sum11YYreal, sum11YYimag, 
@@ -332,6 +474,18 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
 		     sum21YXreal, sum21YXimag, sum21YYreal, sum21YYimag, 
 		     sum22XXreal, sum22XXimag, sum22XYreal, sum22XYimag, 
 		     sum22YXreal, sum22YXimag, sum22YYreal, sum22YYimag);
+#elif (MULTIPLY_MODE == 1 || MULTIPLY_MODE == 2)
+    CUBE_DEVICE_CALL(write2x2, Col, Row, matrix_real, matrix_imag,
+                     sum11XXk1, sum11XXk2, sum11XXk3, sum11XYk1, sum11XYk2, sum11XYk3,
+                     sum11YXk1, sum11YXk2, sum11YXk3, sum11YYk1, sum11YYk2, sum11YYk3,
+                     sum12XXk1, sum12XXk2, sum12XXk3, sum12XYk1, sum12XYk2, sum12XYk3,
+                     sum12YXk1, sum12YXk2, sum12YXk3, sum12YYk1, sum12YYk2, sum12YYk3,
+                     sum21XXk1, sum21XXk2, sum21XXk3, sum21XYk1, sum21XYk2, sum21XYk3,
+                     sum21YXk1, sum21YXk2, sum21YXk3, sum21YYk1, sum21YYk2, sum21YYk3,
+                     sum22XXk1, sum22XXk2, sum22XXk3, sum22XYk1, sum22XYk2, sum22XYk2,
+                     sum22YXk1, sum22YXk2, sum22YXk3, sum22YYk1, sum22YYk2, sum22YYk3);
+
+#endif
 
     CUBE_ADD_BYTES(Col < Row ? 256 : 192); // need load and save
 #ifdef WRITE_OPTION

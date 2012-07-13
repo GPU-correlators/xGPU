@@ -24,6 +24,11 @@
 #define NTIME_PIPE 100
 #endif
 
+#ifndef MULTIPLY_MODE
+#define MULTIPLY_MODE 0
+#endif
+
+
 // Ensure that NTIME_PIPE is a multiple of 4
 #if (NTIME_PIPE/4)*4 != NTIME_PIPE
 #error NTIME_PIPE must be a multiple of 4
