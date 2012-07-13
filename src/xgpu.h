@@ -199,6 +199,8 @@ void xgpuReorderMatrix(Complex *matrix);
 
 void xgpuCheckResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *array_h);
 
+void xgpuCheckResultGPU(Complex *gpu, Complex *cpu, int verbose, ComplexInput *array_h);
+
 void xgpuExtractMatrix(Complex *matrix, Complex *packed);
 
 // Functions in omp_util.cc

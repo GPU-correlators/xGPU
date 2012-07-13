@@ -132,8 +132,29 @@ int main(int argc, char** argv) {
   ComplexInput *array_h = context.array_h; // this is pinned memory
   Complex *cuda_matrix_h = context.matrix_h;
 
-  // create an array of complex noise
+
+//Read input data if flag set
+#if (TEST_DATA == 2)
+  FILE *r;
+  r = fopen("input.dat", "rb");
+  fread(context.array_h, sizeof(ComplexInput), context.array_len, r);
+  fclose(r);
+#endif
+
+//Create complex noise if flag set
+#if (TEST_DATA == 0 || TEST_DATA == 1)
   xgpuRandomComplex(array_h, xgpu_info.vecLength);
+#endif
+
+//Dump random data if flag set
+#if TEST_DATA == 1
+  FILE *f;
+  f = fopen("input.dat", "wb");
+  fwrite(context.array_h, sizeof(ComplexInput), context.array_len, f);
+  fclose(f);
+#endif
+
+
 
   // ompXengine always uses TRIANGULAR_ORDER
   unsigned int ompMatLength = nfrequency * ((nstation+1)*(nstation/2)*npol*npol);
@@ -192,7 +213,27 @@ int main(int argc, char** argv) {
     }
   }
   xgpuReorderMatrix(cuda_matrix_h);
+
+//  xgpuCheckResult(cuda_matrix_h, omp_matrix_h, verbose, array_h);
+
+#if TEST_DATA == 1
+  //FILE *f;
+  f = fopen("output.dat", "wb");
+  fwrite(cuda_matrix_h, sizeof(Complex), context.matrix_len, f);
+  fclose(f);
   xgpuCheckResult(cuda_matrix_h, omp_matrix_h, verbose, array_h);
+#endif
+
+#if TEST_DATA == 2
+  //FILE *r;
+  r = fopen("output.dat", "rb");
+  Complex * cuda_matrix_h_old;
+  cuda_matrix_h_old = (Complex*) malloc(sizeof(Complex)*context.matrix_len);
+  fread(cuda_matrix_h_old, sizeof(Complex), context.matrix_len, r);
+  fclose(r);
+
+  xgpuCheckResultGPU(cuda_matrix_h, cuda_matrix_h_old, verbose, array_h);
+#endif
 
 #if 0
   int fullMatLength = nfrequency * nstation*nstation*npol*npol;

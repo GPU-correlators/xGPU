@@ -78,6 +78,10 @@ ifdef MULTIPLY_MODE
 NVCCFLAGS += -DMULTIPLY_MODE=$(MULTIPLY_MODE)
 endif
 
+ifdef TEST_DATA
+NVCCFLAGS += -DTEST_DATA=$(TEST_DATA)
+endif
+
 
 ################################
 # Benchmarking variable handlers
@@ -199,6 +203,7 @@ show:
 	@echo SHARED_ATOMIC_SIZE=$(SHARED_ATOMIC_SIZE)
 	@echo COMPLEX_BLOCK_SIZE=$(COMPLEX_BLOCK_SIZE)
 	@echo MULTIPLY_MODE=$(MULTIPLY_MODE)
+	@echo TEST_DATA=$(TEST_DATA)
 
 clean:
 	rm -f cuda_correlator libxgpu.so xgpuinfo

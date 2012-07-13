@@ -183,6 +183,9 @@
   float row2Ximag = input[s][2*ty + 1 + 2*TILE_WIDTH + 8*TILE_WIDTH];	\
   float row2Yimag = input[s][2*ty + 1 + 6*TILE_WIDTH + 8*TILE_WIDTH];
 #else
+
+
+
 #error COMPLEX_BLOCK_SIZE must be 1 or 32
 #endif // COMPLEX_BLOCK_SIZE
 #define TWO_BY_TWO_COMPUTE(s)						\

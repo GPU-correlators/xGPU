@@ -28,6 +28,10 @@
 #define MULTIPLY_MODE 0
 #endif
 
+#ifndef TEST_DATA
+#define TEST_DATA 0
+#endif
+
 
 // Ensure that NTIME_PIPE is a multiple of 4
 #if (NTIME_PIPE/4)*4 != NTIME_PIPE
