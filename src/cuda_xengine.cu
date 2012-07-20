@@ -226,7 +226,7 @@ CUBE_DEVICE(static void, write2x2, unsigned int &Col, unsigned int &Row, float4 
     make_float4(SCALE*(sum11XXk1 + sum11XXk2), SCALE*(sum11XYk1 + sum11XYk2), SCALE*(sum11YXk1 + sum11YXk2), SCALE*(sum11YYk1 + sum11YYk2));
 
   matrix_real[f*4*REG_TILE_NBASELINE + REG_TILE_NBASELINE*1 + (Row*(Row+1)/2) + Col] += 
-    make_float4(SCALE*(sum21XXk1 - sum21XXk3), SCALE*(sum21XYk1 - sum21XXk3), SCALE*(sum21YXk1 - sum21YXk3), SCALE*(sum21YYk1 - sum21YYk3));
+    make_float4(SCALE*(sum21XXk1 - sum21XXk3), SCALE*(sum21XYk1 - sum21XYk3), SCALE*(sum21YXk1 - sum21YXk3), SCALE*(sum21YYk1 - sum21YYk3));
   matrix_imag[f*4*REG_TILE_NBASELINE + REG_TILE_NBASELINE*1 + (Row*(Row+1)/2) + Col] += 
     make_float4(SCALE*(sum21XXk1 + sum21XXk2), SCALE*(sum21XYk1 + sum21XYk2), SCALE*(sum21YXk1 + sum21YXk2), SCALE*(sum21YYk1 + sum21YYk2));
 
@@ -482,7 +482,7 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
                      sum12YXk1, sum12YXk2, sum12YXk3, sum12YYk1, sum12YYk2, sum12YYk3,
                      sum21XXk1, sum21XXk2, sum21XXk3, sum21XYk1, sum21XYk2, sum21XYk3,
                      sum21YXk1, sum21YXk2, sum21YXk3, sum21YYk1, sum21YYk2, sum21YYk3,
-                     sum22XXk1, sum22XXk2, sum22XXk3, sum22XYk1, sum22XYk2, sum22XYk2,
+                     sum22XXk1, sum22XXk2, sum22XXk3, sum22XYk1, sum22XYk2, sum22XYk3,
                      sum22YXk1, sum22YXk2, sum22YXk3, sum22YYk1, sum22YYk2, sum22YYk3);
 
 #endif

@@ -177,6 +177,12 @@ void xgpuCheckResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *arra
               Complex delta;
               delta.real = cpu[index].real - gpu[index].real;
               delta.imag = cpu[index].imag - gpu[index].imag;
+
+
+//PRINT and check results
+		if (i<2 && j<2 && f<=5)
+		printf("\nCPU: %f %f\nGPU: %f %f", cpu[index].real, cpu[index].imag, gpu[index].real, gpu[index].imag);
+
 	      error = zabs(delta) / zabs(cpu[index]);
 	    }
 	    if(error > maxError) {
