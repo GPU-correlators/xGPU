@@ -133,7 +133,7 @@ int main(int argc, char** argv) {
   Complex *cuda_matrix_h = context.matrix_h;
 
 
-//Read input data if flag set
+/*//Read input data if flag set
 #if (TEST_DATA == 2)
   FILE *r;
   r = fopen("input.dat", "rb");
@@ -153,6 +153,11 @@ int main(int argc, char** argv) {
   printf("%s", fwrite(context.array_h, sizeof(ComplexInput), context.array_len, f));
   fclose(f);
 #endif
+
+*/
+
+
+  xgpuRandomComplex(array_h, xgpu_info.vecLength);
 
 
 
@@ -215,9 +220,9 @@ int main(int argc, char** argv) {
   xgpuReorderMatrix(cuda_matrix_h);
 
 xgpuCheckResult(cuda_matrix_h, omp_matrix_h, verbose, array_h);
-/*
+
 #if TEST_DATA == 1
-  //FILE *f;
+  FILE *f;
   f = fopen("output.dat", "wb");
   fwrite(cuda_matrix_h, sizeof(Complex), context.matrix_len, f);
   fclose(f);
@@ -225,7 +230,7 @@ xgpuCheckResult(cuda_matrix_h, omp_matrix_h, verbose, array_h);
 #endif
 
 #if TEST_DATA == 2
-  //FILE *r;
+  FILE *r;
   r = fopen("output.dat", "rb");
   Complex * cuda_matrix_h_old;
   cuda_matrix_h_old = (Complex*) malloc(sizeof(Complex)*context.matrix_len);
@@ -234,7 +239,7 @@ xgpuCheckResult(cuda_matrix_h, omp_matrix_h, verbose, array_h);
 
   xgpuCheckResult(cuda_matrix_h, cuda_matrix_h_old, verbose, array_h);
 #endif
-*/
+
 #if 0
   int fullMatLength = nfrequency * nstation*nstation*npol*npol;
   Complex *full_matrix_h = (Complex *) malloc(fullMatLength*sizeof(Complex));

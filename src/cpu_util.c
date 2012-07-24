@@ -163,6 +163,9 @@ void xgpuCheckResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *arra
   double error = 0.0;
   double maxError = 0.0;
   int i, j, pol1, pol2, f, t;
+  float accumulate_x = 0;
+  float accumulate_y = 0;
+
 
   for(i=0; i<NSTATION; i++){
     for (j=0; j<=i; j++) {
@@ -177,11 +180,17 @@ void xgpuCheckResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *arra
               Complex delta;
               delta.real = cpu[index].real - gpu[index].real;
               delta.imag = cpu[index].imag - gpu[index].imag;
+              accumulate_x += cpu[index].real + cpu[index].imag;
+              accumulate_y += gpu[index].real + gpu[index].imag;
+	      //if (delta.real < 1)
+		//printf("\nMatched reals at index %d\n", index);
+	      //if (delta.imag < 1)
+		//printf("\nMatched imags at index %d\n", index);
 
 
 //PRINT and check results
-		if (i<2 && j<2 && f<=5)
-		printf("\nCPU: %f %f\nGPU: %f %f", cpu[index].real, cpu[index].imag, gpu[index].real, gpu[index].imag);
+		//if (i<2 && j<2 && f<=5)
+	      //printf("\nreal: %f %f \nimag: %f %f", cpu[index].real, gpu[index].real, cpu[index].imag, gpu[index].imag);
 
 	      error = zabs(delta) / zabs(cpu[index]);
 	    }

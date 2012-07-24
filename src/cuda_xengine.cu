@@ -135,9 +135,10 @@ CUBE_DEVICE(static void, write2x2, unsigned int &Col, unsigned int &Row, float4 
 #if (MATRIX_ORDER == REGISTER_TILE_TRIANGULAR_ORDER) // write out the register tiles separately
   matrix_real[f*4*REG_TILE_NBASELINE + REG_TILE_NBASELINE*0 + (Row*(Row+1)/2) + Col] += 
     make_float4(SCALE*sum11XXreal, SCALE*sum11XYreal, SCALE*sum11YXreal, SCALE*sum11YYreal);
+  //mike if (threadIdx.x == 0 && threadIdx.y == 0 && blockIdx.x == 0 && blockIdx.y == 0 ) 
+  //mike printf("output 0 %e %e %e %e\n", SCALE*sum11XXreal, SCALE*sum11XYreal, SCALE*sum11YXreal, SCALE*sum11YYreal);
   matrix_imag[f*4*REG_TILE_NBASELINE + REG_TILE_NBASELINE*0 + (Row*(Row+1)/2) + Col] += 
     make_float4(SCALE*sum11XXimag, SCALE*sum11XYimag, SCALE*sum11YXimag, SCALE*sum11YYimag);
-
   matrix_real[f*4*REG_TILE_NBASELINE + REG_TILE_NBASELINE*1 + (Row*(Row+1)/2) + Col] += 
     make_float4(SCALE*sum21XXreal, SCALE*sum21XYreal, SCALE*sum21YXreal, SCALE*sum21YYreal);
   matrix_imag[f*4*REG_TILE_NBASELINE + REG_TILE_NBASELINE*1 + (Row*(Row+1)/2) + Col] += 
@@ -222,9 +223,11 @@ CUBE_DEVICE(static void, write2x2, unsigned int &Col, unsigned int &Row, float4 
 #if (MATRIX_ORDER == REGISTER_TILE_TRIANGULAR_ORDER) // write out the register tiles separately
   matrix_real[f*4*REG_TILE_NBASELINE + REG_TILE_NBASELINE*0 + (Row*(Row+1)/2) + Col] += 
     make_float4(SCALE*(sum11XXk1 - sum11XXk3), SCALE*(sum11XYk1 - sum11XYk3), SCALE*(sum11YXk1 - sum11YXk3), SCALE*(sum11YYk1 - sum11YYk3));
+  // mike if (threadIdx.x == 0 && threadIdx.y == 0 && blockIdx.x == 0 && blockIdx.y == 0 ) 
+  // mike printf("output 1 %e %e %e %e\n", SCALE*(sum11XXk1 - sum11XXk3), SCALE*(sum11XYk1 - sum11XYk3), 
+  //SCALE*(sum11YXk1 - sum11YXk3), SCALE*(sum11YYk1 - sum11YYk3));
   matrix_imag[f*4*REG_TILE_NBASELINE + REG_TILE_NBASELINE*0 + (Row*(Row+1)/2) + Col] += 
     make_float4(SCALE*(sum11XXk1 + sum11XXk2), SCALE*(sum11XYk1 + sum11XYk2), SCALE*(sum11YXk1 + sum11YXk2), SCALE*(sum11YYk1 + sum11YYk2));
-
   matrix_real[f*4*REG_TILE_NBASELINE + REG_TILE_NBASELINE*1 + (Row*(Row+1)/2) + Col] += 
     make_float4(SCALE*(sum21XXk1 - sum21XXk3), SCALE*(sum21XYk1 - sum21XYk3), SCALE*(sum21YXk1 - sum21YXk3), SCALE*(sum21YYk1 - sum21YYk3));
   matrix_imag[f*4*REG_TILE_NBASELINE + REG_TILE_NBASELINE*1 + (Row*(Row+1)/2) + Col] += 
@@ -235,7 +238,6 @@ CUBE_DEVICE(static void, write2x2, unsigned int &Col, unsigned int &Row, float4 
   matrix_imag[f*4*REG_TILE_NBASELINE + REG_TILE_NBASELINE*3 + (Row*(Row+1)/2) + Col] += 
     make_float4(SCALE*(sum22XXk1 + sum22XXk2), SCALE*(sum22XYk1 + sum22XYk2), SCALE*(sum22YXk1 + sum22YXk2), SCALE*(sum22YYk1 + sum22YYk2));
   
-  // Test if entire tile needs to be written or just 3 of 4 parts (exclude top-right)
   // Test if entire tile needs to be written or just 3 of 4 parts (exclude top-right)
   if (Col<Row) {
     matrix_real[f*4*REG_TILE_NBASELINE + REG_TILE_NBASELINE*2 + (Row*(Row+1)/2) + Col] += 
@@ -349,9 +351,11 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
 
 #elif MULTIPLY_MODE == 2
 #if SHARED_ATOMIC_SIZE == 4
+
   __shared__ float input[2][24*TILE_WIDTH]; // 4* for float4, 4* for 2x2 tile size
   float *input0_p = input[0] + tid;
   float *input1_p = input[1] + tid;
+
 #else
   __shared__ float2 input[2][8*TILE_WIDTH]; // 2* for float4/float2, 4* for 2x2 tile size
   float2 *input0_p = input[0] + tid;
@@ -406,7 +410,7 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
 
 
 
-#if SHRED_ATOMIC_SIZE == 8
+#if SHARED_ATOMIC_SIZE == 8
 #if COMPLEX_BLOCK_SIZE != 1
 #error COMPLEX_BLOCK_SIZE must be 1 for SHARED_ATOMIC_SIZE == 8 (for now)
 #endif
@@ -436,6 +440,13 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
     __syncthreads();
 
     TWO_BY_TWO_COMPUTE(0);
+  
+
+//    __syncthreads();
+//    if (threadIdx.x == 0 && threadIdx.y == 0)
+//      printf("\n\n%f %f %f", sum11XXk1, sum11XXk2, sum11XXk3);    
+
+
 
     //t += 1.0f;
     //LOAD(1, t);    
@@ -459,6 +470,13 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
 
   if (Col > Row) return; // writes seem faster when this is pulled up here
   TWO_BY_TWO_COMPUTE(1);
+
+
+// mike    __syncthreads();
+//    if (threadIdx.x == 1 && threadIdx.y == 1)
+//      printf("\n\nOutput: %f %f %f real: %f imag: %f\n\n", sum11XXk1, sum11XXk2, sum11XXk3, sum11XXk1 - sum11XXk3, sum11XXk1 + sum11XXk2);    
+
+
 
 #ifdef WRITE_OPTION
   if (write) {
@@ -484,6 +502,10 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
                      sum21YXk1, sum21YXk2, sum21YXk3, sum21YYk1, sum21YYk2, sum21YYk3,
                      sum22XXk1, sum22XXk2, sum22XXk3, sum22XYk1, sum22XYk2, sum22XYk3,
                      sum22YXk1, sum22YXk2, sum22YXk3, sum22YYk1, sum22YYk2, sum22YYk3);
+    
+    //__syncthreads();
+    //if (threadIdx.x == 1 && threadIdx.y == 1)
+    //      printf("\n\nOutput: %f %f %f real: %f imag: %f\n\n", sum11XXk1, sum11XXk2, sum11XXk3, sum11XXk1 - sum11XXk3, sum11XXk1 + sum11XXk2);    
 
 #endif
 
