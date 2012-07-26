@@ -13,7 +13,7 @@ extern "C" {
 
 
 
-//#define FIXED_POINT
+#define FIXED_POINT
 
 
 

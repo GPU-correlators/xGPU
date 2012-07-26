@@ -349,6 +349,7 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
   float2 *input1_p = input[1] + tid;
 #endif
 
+
 #elif MULTIPLY_MODE == 2
 #if SHARED_ATOMIC_SIZE == 4
 
@@ -361,9 +362,7 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
   float2 *input0_p = input[0] + tid;
   float2 *input1_p = input[1] + tid;
 #endif
-
 #endif
-
 
 
 
@@ -418,6 +417,9 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
 
   unsigned int array_index = f*Nstation*NPOL + tid;
 
+
+
+#if (MULTIPLY_MODE==0 || MULTIPLY_MODE==1)
   if (tid < 4*TILE_WIDTH) {
     // Read in column in first warp
     array_index += 2*blockX*TILE_WIDTH*NPOL;
@@ -430,6 +432,23 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
     input1_p += 4*TILE_WIDTH;
 #endif
   }
+
+#elif (MULTIPLY_MODE==2)
+  if (tid < 4*TILE_WIDTH) {
+    // Read in column in first warp
+    array_index += 2*blockX*TILE_WIDTH*NPOL;
+  } else{    // Read in row in second warp
+    array_index += 2*blockY*TILE_WIDTH*NPOL - 4*TILE_HEIGHT;
+#if SHARED_ATOMIC_SIZE == 4
+    // threads 32..63 now have offset 64..95 (now 96-128)
+    input0_p += 8*TILE_WIDTH;
+    input1_p += 8*TILE_WIDTH;
+#endif
+  }
+#endif
+
+
+
 
   LOAD(0, 0);
 
@@ -472,7 +491,7 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
   TWO_BY_TWO_COMPUTE(1);
 
 
-// mike    __syncthreads();
+//   __syncthreads();
 //    if (threadIdx.x == 1 && threadIdx.y == 1)
 //      printf("\n\nOutput: %f %f %f real: %f imag: %f\n\n", sum11XXk1, sum11XXk2, sum11XXk3, sum11XXk1 - sum11XXk3, sum11XXk1 + sum11XXk2);    
 
@@ -510,6 +529,7 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
 #endif
 
     CUBE_ADD_BYTES(Col < Row ? 256 : 192); // need load and save
+
 #ifdef WRITE_OPTION
   }
 #endif

@@ -12,19 +12,32 @@
 
 #if MULTIPLY_MODE == 0 || MULTIPLY_MODE == 1
 #define LOAD(s, t)							\
-  {float2 temp = tex1Dfetch(tex1dfloat2, array_index + (t)*NFREQUENCY*Nstation*NPOL);			\
+  {float2 temp = tex1Dfetch(tex1dfloat2, array_index + (t)*NFREQUENCY*Nstation*NPOL);\
     CUBE_ADD_BYTES(sizeof(ComplexInput));				\
     *(input##s##_p) = temp.x;						\
     *(input##s##_p + 4*TILE_WIDTH) = temp.y;}
+
+
 #elif MULTIPLY_MODE == 2
-#define LOAD(s, t)							\
-  {float2 temp = tex1Dfetch(tex1dfloat2, array_index + (t)*NFREQUENCY*Nstation*NPOL);			\
-    CUBE_ADD_BYTES(sizeof(ComplexInput));				\
-    *(input##s##_p) = temp.x;						\
-    *(input##s##_p + 4*TILE_WIDTH) = temp.y;}
+
+#define LOAD(s, t)											\
+  {float2 temp = tex1Dfetch(tex1dfloat2, array_index + (t)*NFREQUENCY*Nstation*NPOL);   		\
+    CUBE_ADD_BYTES(1.5*sizeof(ComplexInput));								\
+    *(input##s##_p) = temp.x;										\
+    *(input##s##_p + 4*TILE_WIDTH) = (tid < 4*TILE_WIDTH) ? 0-temp.x-temp.y: temp.y ;			\
+    *(input##s##_p + 8*TILE_WIDTH) = (tid < 4*TILE_WIDTH) ? temp.x - temp.y: temp.x + temp.y;}	
+/*
+    if(tid < 4*TILE_WIDTH){										\
+      *(input##s##_p) = temp.x;										\
+      *(input##s##_p + 4*TILE_WIDTH) = 0-temp.x-temp.y;							\
+      *(input##s##_p + 8*TILE_WIDTH) = temp.x - temp.y;}						\
+    else if (tid < 8*TILE_WIDTH){									\
+      *(input##s##_p + 8*TILE_WIDTH) = temp.x;								\
+      *(input##s##_p + 8*TILE_WIDTH + 4*TILE_HEIGHT) = temp.y;						\
+      *(input##s##_p + 8*TILE_WIDTH + 8*TILE_HEIGHT) = temp.x + temp.y;}}
+*/
+
 #endif
-
-
 
 #elif TEXTURE_DIM == 2
 
@@ -196,7 +209,7 @@
   float p3_2X = col2Xreal - col2Ximag;					\
   float p1_2Y = row2Yreal + row2Yimag;					\
   float p2_2Y = 0 - col2Yimag - col2Yreal;				\
-  float p3_2Y = col2Yreal - col2Yimag;					
+  float p3_2Y = col2Yreal - col2Yimag;
 
 
 
@@ -293,18 +306,6 @@
 #elif MULTIPLY_MODE == 2
 // read in shared data as individual floats to avoid bank conflicts
 
-// [col/row][c][rt][p] -> [col/row][g][rt][p]
-
-#if COMPLEX_BLOCK_SIZE == 1
-#define TWO_BY_TWO_PRELOAD(s)						\
- {float col1Xreal = input[s][4*tx                                   ];	\
-  float col1Ximag = input[s][4*tx     + 4*TILE_WIDTH                ];	\
-  float col1Yreal = input[s][4*tx + 1                               ];	\
-  float col1Yimag = input[s][4*tx + 1 + 4*TILE_WIDTH                ];	\
-  float col2Xreal = input[s][4*tx + 2                               ];	\
-  float col2Ximag = input[s][4*tx + 2 + 4*TILE_WIDTH                ];	\
-  float col2Yreal = input[s][4*tx + 3                               ];	\
-  float col2Yimag = input[s][4*tx + 3 + 4*TILE_WIDTH                ];	\
 /*
 	input[s][(((z*2 + c)*8 + t)*2 + r)*2 + p];
 
@@ -314,18 +315,82 @@
 	t = thread idx (0..7) (col has tx, row has ty)
 	r = register tile coord (1 / 2)
 	p = polarization (X / Y)
+	g = gauss (real,complex, prefactor - 0..5)
+		the 4*TILE_WIDTH piece is now 6*TILE_WIDTH
+
+	NEW indexing
+
+	input[s][(((z*2 + g)*8 + t)*2 + r)*2 + p];
+
+	adding:
+	p1_1X, p2_1X, p3_1X
+	p1_1Y, p2_1Y, p3_1Y
+	p1_2X, p2_2X, p3_2X
+	p1_2Y, p2_2Y, p3_2Y
+	removing:
+	col1Ximag
+	col1Yimag
+	col2Ximag
+	col2Yimag	
+
+
+
 */
-  float row1Xreal = input[s][4*ty                     + 8*TILE_WIDTH];	\
-  float row1Ximag = input[s][4*ty     + 4*TILE_HEIGHT + 8*TILE_WIDTH];	\
-  float row1Yreal = input[s][4*ty + 1                 + 8*TILE_WIDTH];	\
-  float row1Yimag = input[s][4*ty + 1 + 4*TILE_HEIGHT + 8*TILE_WIDTH];	\
-  float row2Xreal = input[s][4*ty + 2                 + 8*TILE_WIDTH];	\
-  float row2Ximag = input[s][4*ty + 2 + 4*TILE_HEIGHT + 8*TILE_WIDTH];	\
-  float row2Yreal = input[s][4*ty + 3                 + 8*TILE_WIDTH];	\
-  float row2Yimag = input[s][4*ty + 3 + 4*TILE_HEIGHT + 8*TILE_WIDTH];
+// [col/row][c][rt][p] -> [col/row][g][rt][p]
 
-//Include p1_1X, p1_1Y, p1_2X, p1_2Y + p2... + p3...
+#if COMPLEX_BLOCK_SIZE == 1
+#define TWO_BY_TWO_PRELOAD(s)						 \
+ {float col1Xreal = input[s][4*tx                                   ];	 \
+  float p2_1X	  = input[s][4*tx     + 4*TILE_WIDTH                ];	 \
+  float p3_1X	  = input[s][4*tx     + 8*TILE_WIDTH                ];	 \
+  float col1Yreal = input[s][4*tx + 1                               ];	 \
+  float p2_1Y	  = input[s][4*tx + 1 + 4*TILE_WIDTH                ];	 \
+  float p3_1Y	  = input[s][4*tx + 1 + 8*TILE_WIDTH                ];	 \
+  float col2Xreal = input[s][4*tx + 2                               ];	 \
+  float p2_2X	  = input[s][4*tx + 2 + 4*TILE_WIDTH                ];	 \
+  float p3_2X	  = input[s][4*tx + 2 + 8*TILE_WIDTH                ];	 \
+  float col2Yreal = input[s][4*tx + 3                               ];	 \
+  float p2_2Y	  = input[s][4*tx + 3 + 4*TILE_WIDTH                ];	 \
+  float p3_2Y	  = input[s][4*tx + 3 + 8*TILE_WIDTH                ];	 \
+  float row1Xreal = input[s][4*ty                     + 12*TILE_WIDTH];	 \
+  float row1Ximag = input[s][4*ty     + 4*TILE_HEIGHT + 12*TILE_WIDTH];	 \
+  float p1_1X	  = input[s][4*ty     + 8*TILE_HEIGHT + 12*TILE_WIDTH];  \
+  float row1Yreal = input[s][4*ty + 1                 + 12*TILE_WIDTH];	 \
+  float row1Yimag = input[s][4*ty + 1 + 4*TILE_HEIGHT + 12*TILE_WIDTH];	 \
+  float p1_1Y	  = input[s][4*ty + 1 + 8*TILE_HEIGHT + 12*TILE_WIDTH];  \
+  float row2Xreal = input[s][4*ty + 2                 + 12*TILE_WIDTH];	 \
+  float row2Ximag = input[s][4*ty + 2 + 4*TILE_HEIGHT + 12*TILE_WIDTH];	 \
+  float p1_2X	  = input[s][4*ty + 2 + 8*TILE_HEIGHT + 12*TILE_WIDTH];  \
+  float row2Yreal = input[s][4*ty + 3                 + 12*TILE_WIDTH];  \
+  float row2Yimag = input[s][4*ty + 3 + 4*TILE_HEIGHT + 12*TILE_WIDTH];  \
+  float p1_2Y	  = input[s][4*ty + 3 + 8*TILE_HEIGHT + 12*TILE_WIDTH];  
 
+/*
+ {float col1Xreal = input[s][4*tx                                   ];	 \
+  float row1Xreal = input[s][4*tx     + 4*TILE_WIDTH                ];	 \
+  float p2_1X	  = input[s][4*tx     + 8*TILE_WIDTH                ];	 \
+  float col1Yreal = input[s][4*tx + 1                               ];	 \
+  float row1Yreal = input[s][4*tx + 1 + 4*TILE_WIDTH                ];	 \
+  float p2_1Y	  = input[s][4*tx + 1 + 8*TILE_WIDTH                ];	 \
+  float col2Xreal = input[s][4*tx + 2                               ];	 \
+  float row2Xreal = input[s][4*tx + 2 + 4*TILE_WIDTH                ];	 \
+  float p2_2X	  = input[s][4*tx + 2 + 8*TILE_WIDTH                ];	 \
+  float col2Yreal = input[s][4*tx + 3                               ];	 \
+  float row2Yreal = input[s][4*tx + 3 + 4*TILE_WIDTH                ];	 \
+  float p2_2Y	  = input[s][4*tx + 3 + 8*TILE_WIDTH                ];	 \
+  float row1Ximag = input[s][4*ty                     + 12*TILE_WIDTH];	 \
+  float p3_1X     = input[s][4*ty     + 4*TILE_HEIGHT + 12*TILE_WIDTH];	 \
+  float p1_1X	  = input[s][4*ty     + 8*TILE_HEIGHT + 12*TILE_WIDTH];  \
+  float row1Yimag = input[s][4*ty + 1                 + 12*TILE_WIDTH];	 \
+  float p3_1Y	  = input[s][4*ty + 1 + 4*TILE_HEIGHT + 12*TILE_WIDTH];	 \
+  float p1_1Y	  = input[s][4*ty + 1 + 8*TILE_HEIGHT + 12*TILE_WIDTH];  \
+  float row2Ximag = input[s][4*ty + 2                 + 12*TILE_WIDTH];	 \
+  float p3_2X	  = input[s][4*ty + 2 + 4*TILE_HEIGHT + 12*TILE_WIDTH];	 \
+  float p1_2X	  = input[s][4*ty + 2 + 8*TILE_HEIGHT + 12*TILE_WIDTH];  \
+  float row2Yimag = input[s][4*ty + 3                 + 12*TILE_WIDTH];  \
+  float p3_2Y	  = input[s][4*ty + 3 + 4*TILE_HEIGHT + 12*TILE_WIDTH];  \
+  float p1_2Y	  = input[s][4*ty + 3 + 8*TILE_HEIGHT + 12*TILE_WIDTH];  
+*/
 
 #elif COMPLEX_BLOCK_SIZE == 32
 #define TWO_BY_TWO_PRELOAD(s)						\
@@ -404,7 +469,6 @@
   sum22YYk1 += p1_2Y * col2Yreal;                     \
   sum22YYk2 += p2_2Y * row2Yreal;                     \
   sum22YYk3 += p3_2Y * row2Yimag;}
-
 #endif
 
 

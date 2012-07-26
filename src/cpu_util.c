@@ -240,81 +240,14 @@ void xgpuCheckResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *arra
     printf("Outer product summation successful (max error %g)\n\n", maxError);
   }
 
+  printf("Sum of CPU: %f Sum of GPU: %f\n\n", accumulate_x, accumulate_y);
 }
 
 
 
 
-void xgpuCheckResultGPU(Complex *gpu, Complex *cpu, int verbose, ComplexInput *array_h) {
 
-  printf("Checking result (tolerance == %g)...\n", TOL); fflush(stdout);
 
-  int errorCount=0;
-  double error = 0.0;
-  double maxError = 0.0;
-  int i, j, pol1, pol2, f, t;
-
-  for(i=0; i<NSTATION; i++){
-    for (j=0; j<=i; j++) {
-      for (pol1=0; pol1<NPOL; pol1++) {
-	for (pol2=0; pol2<NPOL; pol2++) {
-	  for(f=0; f<NFREQUENCY; f++){
-	    int k = f*(NSTATION+1)*(NSTATION/2) + i*(i+1)/2 + j;
-	    int index = (k*NPOL+pol1)*NPOL+pol2;
-	    if(zabs(cpu[index]) == 0) {
-	      error = zabs(gpu[index]);
-	    } else {
-              Complex delta;
-              delta.real = cpu[index].real - gpu[index].real;
-              delta.imag = cpu[index].imag - gpu[index].imag;
-	      error = zabs(delta) / zabs(cpu[index]);
-	    }
-	    if(error > maxError) {
-	      maxError = error;
-	    }
-	    if(error > TOL) {
-              if(verbose > 0) {
-                printf("%d %d %d %d %d %d %d %g  %g  %g  %g (%g %g)\n", f, i, j, k, pol1, pol2, index,
-                       cpu[index].real, gpu[index].real, cpu[index].imag, gpu[index].imag, zabs(cpu[index]), zabs(gpu[index]));
-                if(verbose > 1 && array_h) {
-                  Complex sum;
-                  sum.real = 0;
-                  sum.imag = 0;
-                  for(t=0; t<NTIME; t++) {
-                    ComplexInput in0 = array_h[t*NFREQUENCY*NSTATION*2 + f*NSTATION*2 + i*2 + pol1];
-                    ComplexInput in1 = array_h[t*NFREQUENCY*NSTATION*2 + f*NSTATION*2 + j*2 + pol2];
-                    //Complex prod = convert(in0) * conj(convert(in1));
-                    Complex prod;
-                    prod.real = in0.real * in1.real + in0.imag * in1.imag;
-                    prod.imag = in0.imag * in1.real - in0.real * in1.imag;
-
-                    sum.real += prod.real;
-                    sum.imag += prod.imag;
-                    printf(" %4d (%4g,%4g) (%4g,%4g) -> (%6g, %6g)\n", t,
-                        //(float)real(in0), (float)imag(in0),
-                        //(float)real(in1), (float)imag(in1),
-                        //(float)real(prod), (float)imag(prod));
-                        (float)in0.real, (float)in0.imag,
-                        (float)in1.real, (float)in1.imag,
-                        (float)prod.real, (float)prod.imag);
-                  }
-                  printf("                                 (%6g, %6g)\n", sum.real, sum.imag);
-                }
-              }
-	      errorCount++;
-	    }
-	  }
-	}
-      }
-    }
-  }
-
-  if (errorCount) {
-    printf("Outer product summation failed with %d deviations (max error %g)\n\n", errorCount, maxError);
-  } else {
-    printf("Outer product summation successful (max error %g)\n\n", maxError);
-  }
-}
 
 
 
