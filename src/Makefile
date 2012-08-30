@@ -132,7 +132,7 @@ DEPS = $(BINXGPU_OBJS:.o=.d) $(LIBXGPU_OBJS:.o=.d)
 all: cuda_correlator xgpuinfo $(LIBXGPU)
 
 cuda_correlator: $(CUDA_CORRELATOR_OBJS) $(LIBXGPU)
-	$(NVCC) $(NVCCFLAGS) $^ -o $@ $(LFLAGS) $(RPATH) -lxgpu
+	$(NVCC) $(NVCCFLAGS) $^ -o $@ $(LFLAGS) $(RPATH) -lxgpu -lrt
 
 xgpuinfo: $(XGPUINFO_OBJS) $(LIBXGPU)
 	$(NVCC) $(NVCCFLAGS) $^ -o $@ $(LFLAGS) $(RPATH) -lxgpu
