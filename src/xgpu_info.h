@@ -24,6 +24,13 @@
 #define NTIME_PIPE 100
 #endif
 
+#ifndef REGISTER_HOST_ARRAY
+#define REGISTER_HOST_ARRAY 1
+#endif
+#ifndef REGISTER_HOST_MATRIX
+#define REGISTER_HOST_MATRIX 1
+#endif
+
 // Ensure that NTIME_PIPE is a multiple of 4
 #if (NTIME_PIPE/4)*4 != NTIME_PIPE
 #error NTIME_PIPE must be a multiple of 4

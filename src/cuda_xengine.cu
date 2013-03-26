@@ -565,6 +565,7 @@ int xgpuSetHostInputBuffer(XGPUContext *context)
   }
 
   if(context->array_h) {
+#if REGISTER_HOST_ARRAY
     // Register caller-allocated host memory with CUDA.
     // Round address down to nearest page_size boundary
     uintptr_t ptr_in = (uintptr_t)context->array_h;
@@ -583,18 +584,16 @@ int xgpuSetHostInputBuffer(XGPUContext *context)
     fprintf(stderr, "length = %lx\n", length);
 #endif
     CLOCK_GETTIME(CLOCK_MONOTONIC, &a);
-    cudaError_t cuda_error = cudaHostRegister((void *)ptr_aligned, length, 0);
+    cudaHostRegister((void *)ptr_aligned, length, 0);
     CLOCK_GETTIME(CLOCK_MONOTONIC, &b);
     PRINT_ELAPASED("cudaHostRegister", ELAPSED_NS(a,b));
-    if( cuda_error == cudaErrorHostMemoryAlreadyRegistered ) {
-      internal->unregister_array_h = NULL;
-      internal->free_array_h = NULL;
-    }
-    else {
-      internal->unregister_array_h = (ComplexInput *)ptr_aligned;
-      internal->free_array_h = NULL;
-      checkCudaError();
-    }
+    internal->unregister_array_h = (ComplexInput *)ptr_aligned;
+    internal->free_array_h = NULL;
+    checkCudaError();
+#else // REGISTER_HOST_ARRAY
+    internal->unregister_array_h = NULL;
+    internal->free_array_h = NULL;
+#endif // REGISTER_HOST_ARRAY
   } else {
     // allocate host memory
     context->array_len = compiletime_info.vecLength;
@@ -631,6 +630,7 @@ int xgpuSetHostOutputBuffer(XGPUContext *context)
   }
 
   if(context->matrix_h) {
+#if REGISTER_HOST_MATRIX
     // Register caller-allocated host memory with CUDA.
     // This requires that the caller allocated the memory properly vis-a-vis
     // the requirements of cudaHostRegister!
@@ -650,16 +650,14 @@ int xgpuSetHostOutputBuffer(XGPUContext *context)
     fprintf(stderr, "page aligned context->matrix_h = %p\n", ptr_aligned);
     fprintf(stderr, "length = %lx\n", length);
 #endif
-    cudaError_t cuda_error = cudaHostRegister((void *)ptr_aligned, length, 0);
-    if( cuda_error == cudaErrorHostMemoryAlreadyRegistered ) {
-      internal->unregister_matrix_h = NULL;
-      internal->free_matrix_h = NULL;
-    }
-    else {
-      internal->unregister_matrix_h = (Complex *)ptr_aligned;
-      internal->free_matrix_h = NULL;
-      checkCudaError();
-    }
+    cudaHostRegister((void *)ptr_aligned, length, 0);
+    internal->unregister_matrix_h = (Complex *)ptr_aligned;
+    internal->free_matrix_h = NULL;
+    checkCudaError();
+#else // REGISTER_HOST_MATRIX
+    internal->unregister_matrix_h = NULL;
+    internal->free_matrix_h = NULL;
+#endif // REGISTER_HOST_MATRIX
   } else {
     // allocate host memory
     context->matrix_len = compiletime_info.matLength;
