@@ -19,7 +19,7 @@ RPATH =
 LIBXGPU = libxgpu.dll
 else
 NVCCFLAGS = -Xcompiler -fopenmp -Xcompiler -D_REENTRANT -Xcompiler -Wall
-LFLAGS = -L$(CUDA_LIBDIR) -L.
+LFLAGS = -L$(CUDA_LIBDIR) -L. -lrt
 RPATH = -Xlinker -rpath,'$${ORIGIN}:$${ORIGIN}/../lib'
 LIBXGPU = libxgpu.so
 endif
@@ -132,10 +132,10 @@ DEPS = $(BINXGPU_OBJS:.o=.d) $(LIBXGPU_OBJS:.o=.d)
 all: cuda_correlator xgpuinfo $(LIBXGPU)
 
 cuda_correlator: $(CUDA_CORRELATOR_OBJS) $(LIBXGPU)
-	$(NVCC) $(NVCCFLAGS) $^ -o $@ $(LFLAGS) $(RPATH) -lxgpu
+	$(NVCC) $(NVCCFLAGS) $(CUDA_CORRELATOR_OBJS) -o $@ $(LFLAGS) $(RPATH) -lxgpu
 
 xgpuinfo: $(XGPUINFO_OBJS) $(LIBXGPU)
-	$(NVCC) $(NVCCFLAGS) $^ -o $@ $(LFLAGS) $(RPATH) -lxgpu
+	$(NVCC) $(NVCCFLAGS) $(XGPUINFO_OBJS) -o $@ $(LFLAGS) $(RPATH) -lxgpu
 
 $(LIBXGPU): $(LIBXGPU_OBJS)
 	$(NVCC) $(NVCCFLAGS) $^ -o $@ $(LFLAGS) --shared

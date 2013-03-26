@@ -583,12 +583,18 @@ int xgpuSetHostInputBuffer(XGPUContext *context)
     fprintf(stderr, "length = %lx\n", length);
 #endif
     CLOCK_GETTIME(CLOCK_MONOTONIC, &a);
-    cudaHostRegister((void *)ptr_aligned, length, 0);
+    cudaError_t cuda_error = cudaHostRegister((void *)ptr_aligned, length, 0);
     CLOCK_GETTIME(CLOCK_MONOTONIC, &b);
     PRINT_ELAPASED("cudaHostRegister", ELAPSED_NS(a,b));
-    internal->unregister_array_h = (ComplexInput *)ptr_aligned;
-    internal->free_array_h = NULL;
-    checkCudaError();
+    if( cuda_error == cudaErrorHostMemoryAlreadyRegistered ) {
+      internal->unregister_array_h = NULL;
+      internal->free_array_h = NULL;
+    }
+    else {
+      internal->unregister_array_h = (ComplexInput *)ptr_aligned;
+      internal->free_array_h = NULL;
+      checkCudaError();
+    }
   } else {
     // allocate host memory
     context->array_len = compiletime_info.vecLength;
@@ -644,10 +650,16 @@ int xgpuSetHostOutputBuffer(XGPUContext *context)
     fprintf(stderr, "page aligned context->matrix_h = %p\n", ptr_aligned);
     fprintf(stderr, "length = %lx\n", length);
 #endif
-    cudaHostRegister((void *)ptr_aligned, length, 0);
-    internal->unregister_matrix_h = (Complex *)ptr_aligned;
-    internal->free_matrix_h = NULL;
-    checkCudaError();
+    cudaError_t cuda_error = cudaHostRegister((void *)ptr_aligned, length, 0);
+    if( cuda_error == cudaErrorHostMemoryAlreadyRegistered ) {
+      internal->unregister_matrix_h = NULL;
+      internal->free_matrix_h = NULL;
+    }
+    else {
+      internal->unregister_matrix_h = (Complex *)ptr_aligned;
+      internal->free_matrix_h = NULL;
+      checkCudaError();
+    }
   } else {
     // allocate host memory
     context->matrix_len = compiletime_info.matLength;
