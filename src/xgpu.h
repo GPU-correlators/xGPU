@@ -102,6 +102,7 @@ typedef struct XGPUContextStruct {
 #define XGPU_CUDA_ERROR                  (2)
 #define XGPU_INSUFFICIENT_TEXTURE_MEMORY (3)
 #define XGPU_NOT_INITIALIZED             (4)
+#define XGPU_HOST_BUFFER_NOT_SET         (5)
 
 // Values for xgpuCudaXengine's syncOp parameter
 #define SYNCOP_NONE           0

@@ -59,6 +59,13 @@ parameters at their default values:
 The parameters REGISTER_HOST_ARRAY and REGISTER_HOST_MATRIX can also
 be set to 0 to disable automatic registering of passed-in host memory.
 
+An update to the library means that xgpuInit no longer automatically
+calls xgpuSetHostInputBuffer and xgpuSetHostOutputBuffer, requiring
+the user to call them explicitly prior to calling xgpuCudaXengine. The
+parameter ALLOW_OLD_INTERFACE defaults to 1, maintaining backwards
+compatibility, but can be set to 0 to avoid unnecessary allocations
+when using REGISTER_HOST_ARRAY/MATRIX=0.
+
 Installing the Library:
 
 The library can be installed by changing into the src subdirectoy and

@@ -31,6 +31,10 @@
 #define REGISTER_HOST_MATRIX 1
 #endif
 
+#ifndef ALLOW_OLD_INTERFACE
+#define ALLOW_OLD_INTERFACE 1
+#endif
+
 // Ensure that NTIME_PIPE is a multiple of 4
 #if (NTIME_PIPE/4)*4 != NTIME_PIPE
 #error NTIME_PIPE must be a multiple of 4

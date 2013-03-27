@@ -58,11 +58,17 @@ typedef struct XGPUInternalContextStruct {
   // Host input array that we registered and should unregister
   ComplexInput * unregister_array_h;
 
+  // Whether xgpuSetHostInputBuffer has been called
+  bool array_h_set;
+
   // Host output array that we allocated and should free
   Complex * free_matrix_h;
 
   // Host output array that we registered and should unregister
   Complex * unregister_matrix_h;
+
+  // Whether xgpuSetHostOutputBuffer has been called
+  bool matrix_h_set;
 } XGPUInternalContext;
 
 #define TILE_HEIGHT 8
@@ -421,6 +427,8 @@ int xgpuInit(XGPUContext *context, int device)
   }
   context->internal = internal;
   internal->device = device;
+  internal->array_h_set  = false;
+  internal->matrix_h_set = false;
 
   long long unsigned int vecLengthPipe = compiletime_info.vecLengthPipe;
   long long unsigned int matLength = compiletime_info.matLength;
@@ -432,14 +440,18 @@ int xgpuInit(XGPUContext *context, int device)
   // Setup input buffer
   internal->unregister_array_h = NULL;
   internal->free_array_h = NULL;
+#if ALLOW_OLD_INTERFACE
   // TODO error check
   xgpuSetHostInputBuffer(context);
+#endif
 
   // Setup output buffer
   internal->unregister_matrix_h = NULL;
   internal->free_matrix_h = NULL;
+#if ALLOW_OLD_INTERFACE
   // TODO error check
   xgpuSetHostOutputBuffer(context);
+#endif
 
   //allocate memory on device
   cudaMalloc((void **) &(internal->array_d[0]), vecLengthPipe*sizeof(ComplexInput));
@@ -545,6 +557,9 @@ int xgpuSetHostInputBuffer(XGPUContext *context)
   if(!internal) {
     return XGPU_NOT_INITIALIZED;
   }
+
+  internal->array_h_set = true;
+
   //assign the device
   CLOCK_GETTIME(CLOCK_MONOTONIC, &a);
   cudaSetDevice(internal->device);
@@ -619,6 +634,9 @@ int xgpuSetHostOutputBuffer(XGPUContext *context)
   if(!internal) {
     return XGPU_NOT_INITIALIZED;
   }
+
+  internal->matrix_h_set = true;
+
   //assign the device
   cudaSetDevice(internal->device);
 
@@ -722,6 +740,12 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
   if(!internal) {
     return XGPU_NOT_INITIALIZED;
   }
+
+  // xgpuSetHostInputBuffer and xgpuSetHostOutputBuffer must have been called
+  if( !internal->array_h_set || !internal->matrix_h_set ) {
+    return XGPU_HOST_BUFFER_NOT_SET;
+  }
+
   //assign the device
   cudaSetDevice(internal->device);
 
