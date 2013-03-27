@@ -440,7 +440,7 @@ int xgpuInit(XGPUContext *context, int device)
   // Setup input buffer
   internal->unregister_array_h = NULL;
   internal->free_array_h = NULL;
-#if ALLOW_OLD_INTERFACE
+#if REGISTER_HOST_ARRAY
   // TODO error check
   xgpuSetHostInputBuffer(context);
 #endif
@@ -448,7 +448,7 @@ int xgpuInit(XGPUContext *context, int device)
   // Setup output buffer
   internal->unregister_matrix_h = NULL;
   internal->free_matrix_h = NULL;
-#if ALLOW_OLD_INTERFACE
+#if REGISTER_HOST_MATRIX
   // TODO error check
   xgpuSetHostOutputBuffer(context);
 #endif

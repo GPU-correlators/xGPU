@@ -81,10 +81,6 @@ ifdef REGISTER_HOST_MATRIX
 NVCCFLAGS += -DREGISTER_HOST_MATRIX=$(REGISTER_HOST_MATRIX)
 endif
 
-ifdef ALLOW_OLD_INTERFACE
-NVCCFLAGS += -DALLOW_OLD_INTERFACE=$(ALLOW_OLD_INTERFACE)
-endif
-
 ################################
 # Benchmarking variable handlers
 ################################
@@ -206,7 +202,6 @@ show:
 	@echo COMPLEX_BLOCK_SIZE=$(COMPLEX_BLOCK_SIZE)
 	@echo REGISTER_HOST_ARRAY=$(REGISTER_HOST_ARRAY)
 	@echo REGISTER_HOST_MATRIX=$(REGISTER_HOST_MATRIX)
-	@echo ALLOW_OLD_INTERFACE=$(ALLOW_OLD_INTERFACE)
 
 clean:
 	rm -f cuda_correlator libxgpu.so xgpuinfo
