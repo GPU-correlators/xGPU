@@ -19,7 +19,7 @@ RPATH =
 LIBXGPU = libxgpu.dll
 else
 NVCCFLAGS = -Xcompiler -fopenmp -Xcompiler -D_REENTRANT -Xcompiler -Wall
-LFLAGS = -L$(CUDA_LIBDIR) -L. -lrt
+LFLAGS = -L$(CUDA_LIBDIR) -L. -lrt #-lcudart
 RPATH = -Xlinker -rpath,'$${ORIGIN}:$${ORIGIN}/../lib'
 LIBXGPU = libxgpu.so
 endif
@@ -72,13 +72,6 @@ endif
 
 ifdef COMPLEX_BLOCK_SIZE
 NVCCFLAGS += -DCOMPLEX_BLOCK_SIZE=$(COMPLEX_BLOCK_SIZE)
-endif
-
-ifdef REGISTER_HOST_ARRAY
-NVCCFLAGS += -DREGISTER_HOST_ARRAY=$(REGISTER_HOST_ARRAY)
-endif
-ifdef REGISTER_HOST_MATRIX
-NVCCFLAGS += -DREGISTER_HOST_MATRIX=$(REGISTER_HOST_MATRIX)
 endif
 
 ################################
@@ -200,8 +193,6 @@ show:
 	@echo NTIME_PIPE=$(NTIME_PIPE)
 	@echo SHARED_ATOMIC_SIZE=$(SHARED_ATOMIC_SIZE)
 	@echo COMPLEX_BLOCK_SIZE=$(COMPLEX_BLOCK_SIZE)
-	@echo REGISTER_HOST_ARRAY=$(REGISTER_HOST_ARRAY)
-	@echo REGISTER_HOST_MATRIX=$(REGISTER_HOST_MATRIX)
 
 clean:
 	rm -f cuda_correlator libxgpu.so xgpuinfo

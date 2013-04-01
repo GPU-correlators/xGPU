@@ -60,6 +60,7 @@ typedef struct XGPUInternalContextStruct {
 
   // Whether xgpuSetHostInputBuffer has been called
   bool array_h_set;
+  bool register_host_array;
 
   // Host output array that we allocated and should free
   Complex * free_matrix_h;
@@ -69,6 +70,7 @@ typedef struct XGPUInternalContextStruct {
 
   // Whether xgpuSetHostOutputBuffer has been called
   bool matrix_h_set;
+  bool register_host_matrix;
 } XGPUInternalContext;
 
 #define TILE_HEIGHT 8
@@ -413,7 +415,7 @@ void xgpuInfo(XGPUInfo *pcxs)
 // was allocated).
 //
 // TODO Cleanup as needed if returning due to error
-int xgpuInit(XGPUContext *context, int device)
+int xgpuInit(XGPUContext *context, int device_flags)
 {
   int error = XGPU_OK;
 
@@ -426,32 +428,40 @@ int xgpuInit(XGPUContext *context, int device)
     return XGPU_OUT_OF_MEMORY;
   }
   context->internal = internal;
-  internal->device = device;
+  internal->device = device_flags & XGPU_DEVICE_MASK;
   internal->array_h_set  = false;
   internal->matrix_h_set = false;
+  internal->register_host_array  = true;
+  internal->register_host_matrix = true;
+  if( device_flags & XGPU_DONT_REGISTER_ARRAY ) {
+	  internal->register_host_array = false;
+  }
+  if( device_flags & XGPU_DONT_REGISTER_MATRIX ) {
+	  internal->register_host_matrix = false;
+  }
 
   long long unsigned int vecLengthPipe = compiletime_info.vecLengthPipe;
   long long unsigned int matLength = compiletime_info.matLength;
 
   //assign the device
-  cudaSetDevice(device);
+  cudaSetDevice(internal->device);
   checkCudaError();
 
   // Setup input buffer
   internal->unregister_array_h = NULL;
   internal->free_array_h = NULL;
-#if REGISTER_HOST_ARRAY
-  // TODO error check
-  xgpuSetHostInputBuffer(context);
-#endif
+  if( internal->register_host_array ) {
+	  // TODO error check
+	  xgpuSetHostInputBuffer(context);
+  }
 
   // Setup output buffer
   internal->unregister_matrix_h = NULL;
   internal->free_matrix_h = NULL;
-#if REGISTER_HOST_MATRIX
-  // TODO error check
-  xgpuSetHostOutputBuffer(context);
-#endif
+  if( internal->register_host_matrix ) {
+	  // TODO error check
+	  xgpuSetHostOutputBuffer(context);
+  }
 
   //allocate memory on device
   cudaMalloc((void **) &(internal->array_d[0]), vecLengthPipe*sizeof(ComplexInput));
@@ -503,7 +513,7 @@ int xgpuInit(XGPUContext *context, int device)
 
   // check whether texture dimensions are ok
   cudaDeviceProp deviceProp;
-  cudaGetDeviceProperties(&deviceProp, device);
+  cudaGetDeviceProperties(&deviceProp, internal->device);
 
 #if TEXTURE_DIM == 2
   if((NFREQUENCY * NSTATION * NPOL > deviceProp.maxTexture2D[0]) ||
@@ -580,35 +590,36 @@ int xgpuSetHostInputBuffer(XGPUContext *context)
   }
 
   if(context->array_h) {
-#if REGISTER_HOST_ARRAY
-    // Register caller-allocated host memory with CUDA.
-    // Round address down to nearest page_size boundary
-    uintptr_t ptr_in = (uintptr_t)context->array_h;
-    uintptr_t ptr_aligned = ptr_in - (ptr_in % page_size);
-    // Compute length starting with compile time requirement
-    size_t length = context->array_len * sizeof(ComplexInput);
-    // TODO Verify that length is at least
-    // "compiletime_info.vecLength*sizeof(ComplexInput)"
+    if( internal->register_host_array ) {
+      // Register caller-allocated host memory with CUDA.
+      // Round address down to nearest page_size boundary
+      uintptr_t ptr_in = (uintptr_t)context->array_h;
+      uintptr_t ptr_aligned = ptr_in - (ptr_in % page_size);
+      // Compute length starting with compile time requirement
+      size_t length = context->array_len * sizeof(ComplexInput);
+      // TODO Verify that length is at least
+      // "compiletime_info.vecLength*sizeof(ComplexInput)"
 
-    // Add in any rounding that was done to the input pointer
-    length += (ptr_in - ptr_aligned);
-    // Round length up to next multiple of page size
-    length = (length+page_size-1) / page_size * page_size;
+      // Add in any rounding that was done to the input pointer
+      length += (ptr_in - ptr_aligned);
+      // Round length up to next multiple of page size
+      length = (length+page_size-1) / page_size * page_size;
 #ifdef VERBOSE
-    fprintf(stderr, "page aligned context->array_h = %p\n", ptr_aligned);
-    fprintf(stderr, "length = %lx\n", length);
+      fprintf(stderr, "page aligned context->array_h = %p\n", ptr_aligned);
+      fprintf(stderr, "length = %lx\n", length);
 #endif
-    CLOCK_GETTIME(CLOCK_MONOTONIC, &a);
-    cudaHostRegister((void *)ptr_aligned, length, 0);
-    CLOCK_GETTIME(CLOCK_MONOTONIC, &b);
-    PRINT_ELAPASED("cudaHostRegister", ELAPSED_NS(a,b));
-    internal->unregister_array_h = (ComplexInput *)ptr_aligned;
-    internal->free_array_h = NULL;
-    checkCudaError();
-#else // REGISTER_HOST_ARRAY
-    internal->unregister_array_h = NULL;
-    internal->free_array_h = NULL;
-#endif // REGISTER_HOST_ARRAY
+      CLOCK_GETTIME(CLOCK_MONOTONIC, &a);
+      cudaHostRegister((void *)ptr_aligned, length, 0);
+      CLOCK_GETTIME(CLOCK_MONOTONIC, &b);
+      PRINT_ELAPASED("cudaHostRegister", ELAPSED_NS(a,b));
+      internal->unregister_array_h = (ComplexInput *)ptr_aligned;
+      internal->free_array_h = NULL;
+      checkCudaError();
+    }
+    else {
+      internal->unregister_array_h = NULL;
+      internal->free_array_h = NULL;
+    }
   } else {
     // allocate host memory
     context->array_len = compiletime_info.vecLength;
@@ -648,34 +659,35 @@ int xgpuSetHostOutputBuffer(XGPUContext *context)
   }
 
   if(context->matrix_h) {
-#if REGISTER_HOST_MATRIX
-    // Register caller-allocated host memory with CUDA.
-    // This requires that the caller allocated the memory properly vis-a-vis
-    // the requirements of cudaHostRegister!
-    // Round address down to nearest page_size boundary
-    uintptr_t ptr_in = (uintptr_t)context->matrix_h;
-    uintptr_t ptr_aligned = ptr_in - (ptr_in % page_size);
-    // Compute length starting with compile time requirement
-    size_t length = context->matrix_len * sizeof(Complex);
-    // TODO Verify that length is at least
-    // "compiletime_info.matLength*sizeof(Complex)"
+    if( internal->register_host_matrix ) {
+      // Register caller-allocated host memory with CUDA.
+      // This requires that the caller allocated the memory properly vis-a-vis
+      // the requirements of cudaHostRegister!
+      // Round address down to nearest page_size boundary
+      uintptr_t ptr_in = (uintptr_t)context->matrix_h;
+      uintptr_t ptr_aligned = ptr_in - (ptr_in % page_size);
+      // Compute length starting with compile time requirement
+      size_t length = context->matrix_len * sizeof(Complex);
+      // TODO Verify that length is at least
+      // "compiletime_info.matLength*sizeof(Complex)"
 
-    // Add in any rounding that was done to the input pointer
-    length += (ptr_in - ptr_aligned);
-    // Round length up to next multiple of page size
-    length = (length+page_size-1) / page_size * page_size;
+      // Add in any rounding that was done to the input pointer
+      length += (ptr_in - ptr_aligned);
+      // Round length up to next multiple of page size
+      length = (length+page_size-1) / page_size * page_size;
 #ifdef VERBOSE
-    fprintf(stderr, "page aligned context->matrix_h = %p\n", ptr_aligned);
-    fprintf(stderr, "length = %lx\n", length);
+      fprintf(stderr, "page aligned context->matrix_h = %p\n", ptr_aligned);
+      fprintf(stderr, "length = %lx\n", length);
 #endif
-    cudaHostRegister((void *)ptr_aligned, length, 0);
-    internal->unregister_matrix_h = (Complex *)ptr_aligned;
-    internal->free_matrix_h = NULL;
-    checkCudaError();
-#else // REGISTER_HOST_MATRIX
-    internal->unregister_matrix_h = NULL;
-    internal->free_matrix_h = NULL;
-#endif // REGISTER_HOST_MATRIX
+      cudaHostRegister((void *)ptr_aligned, length, 0);
+      internal->unregister_matrix_h = (Complex *)ptr_aligned;
+      internal->free_matrix_h = NULL;
+      checkCudaError();
+    }
+    else {
+      internal->unregister_matrix_h = NULL;
+      internal->free_matrix_h = NULL;
+    }
   } else {
     // allocate host memory
     context->matrix_len = compiletime_info.matLength;
