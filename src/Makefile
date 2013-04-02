@@ -2,11 +2,12 @@
 # (usually sizing for a specific project)
 -include Makefile.local
 
-CUDA_LIBDIR ?= /opt/cuda/lib64
+CUDA_DIR ?= /usr/local/cuda
+CUDA_LIBDIR ?= $(CUDA_DIR)/lib64
 DEBUG ?= -O3
 TEXTURE_DIM ?= 1
 
-NVCC = nvcc
+NVCC = $(CUDA_DIR)/bin/nvcc
 prefix ?= /usr/local
 bindir ?= $(prefix)/bin
 libdir ?= $(prefix)/lib
