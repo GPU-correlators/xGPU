@@ -26,8 +26,12 @@ RPATH = -Xlinker -rpath,'$${ORIGIN}:$${ORIGIN}/../lib'
 LIBXGPU = libxgpu.so
 endif
 
-NVCCFLAGS += $(DEBUG) -arch=$(CUDA_ARCH) -Xptxas -abi=no --ptxas-options=-v -prec-sqrt=false -Xcompiler -fPIC
+NVCCFLAGS += $(DEBUG) -arch=$(CUDA_ARCH) -Xptxas -abi=no --ptxas-options=-v -prec-sqrt=false -Xcompiler -fPIC 
 NVCCFLAGS += -DTEXTURE_DIM=$(TEXTURE_DIM)
+
+ifeq ($(strip $(CUDA_ARCH)),sm_35)
+NVCCFLAGS += -maxrregcount=72
+endif
 
 #NVCCFLAGS += -Xptxas -dlcm=cg # disable L1 cache
 
