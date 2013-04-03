@@ -6,6 +6,7 @@ CUDA_DIR ?= /usr/local/cuda
 CUDA_LIBDIR ?= $(CUDA_DIR)/lib64
 DEBUG ?= -O3
 TEXTURE_DIM ?= 1
+CUDA_ARCH ?= sm_20
 
 NVCC = $(CUDA_DIR)/bin/nvcc
 prefix ?= /usr/local
@@ -25,7 +26,7 @@ RPATH = -Xlinker -rpath,'$${ORIGIN}:$${ORIGIN}/../lib'
 LIBXGPU = libxgpu.so
 endif
 
-NVCCFLAGS += $(DEBUG) -arch=sm_20 -Xptxas -abi=no --ptxas-options=-v -prec-sqrt=false -Xcompiler -fPIC
+NVCCFLAGS += $(DEBUG) -arch=$(CUDA_ARCH) -Xptxas -abi=no --ptxas-options=-v -prec-sqrt=false -Xcompiler -fPIC
 NVCCFLAGS += -DTEXTURE_DIM=$(TEXTURE_DIM)
 
 #NVCCFLAGS += -Xptxas -dlcm=cg # disable L1 cache
