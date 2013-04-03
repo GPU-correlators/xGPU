@@ -266,8 +266,8 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
   float2 *input0_p = input[0] + tid;
   float2 *input1_p = input[1] + tid;
 #if BUFFER_DEPTH == 4
-  float *input2_p = input[2] + tid;
-  float *input3_p = input[3] + tid;
+  float2 *input2_p = input[2] + tid;
+  float2 *input3_p = input[3] + tid;
 #endif // BUFFER_DEPTH==4
 #endif
 
