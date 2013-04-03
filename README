@@ -23,7 +23,8 @@ http://www.nvidia.com/object/cuda_learn_products.html
 While this library will run on pre-Fermi GPUs with appropriate changes
 to the Makefile, note that the kernels make Fermi-specific
 optimizations and so will likely lead to sub-standard performance on
-sm1.x CUDA architectures.
+sm1.x CUDA architectures.  Initial tuning has taken place for the
+Kepler architecture, but this is far from complete.
 
 Building the Library:
 
@@ -112,7 +113,8 @@ Astronomy Cross-Correlation with Graphics Processing units",
 
 Authors:
 
-Michael Clark (Harvard University)
+Michael Clark (NVIDIA)
 Paul La Plante (Loyola University Maryland)
 Lincoln Greenhill (Harvard-Smithsonian Center for Astrophysics)
 David MacMahon (University of California, Berkeley)
+Ben Barsdell (Harvard-Smithsonian Center for Astrophysics)
