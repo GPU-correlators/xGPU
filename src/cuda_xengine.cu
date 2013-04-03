@@ -845,7 +845,7 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
   CUBE_ASYNC_START(PIPELINE_LOOP);
 
 #ifdef POWER_LOOP
-  for (int q=0; ; q++) 
+  for (int q=0; ; q++)
 #endif
   for (int p=1; p<PIPE_LENGTH; p++) {
     array_compute = array_d[(p+1)%2];
@@ -865,9 +865,8 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
     checkCudaError();
 
     // Download next chunk of input data
-    array_hp += vecLengthPipe;
     cudaStreamWaitEvent(streams[0], kernelCompletion[p%2], 0); // only start the transfer once the kernel has completed
-    CUBE_ASYNC_COPY_CALL(array_load, array_hp, vecLengthPipe*sizeof(ComplexInput), cudaMemcpyHostToDevice, streams[0]);
+    CUBE_ASYNC_COPY_CALL(array_load, array_hp+p*vecLengthPipe, vecLengthPipe*sizeof(ComplexInput), cudaMemcpyHostToDevice, streams[0]);
     cudaEventRecord(copyCompletion[p%2], streams[0]); // record the completion of the h2d transfer
     checkCudaError();
   }
