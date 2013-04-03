@@ -233,6 +233,13 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
 {
   CUBE_START;
 
+// Set the degree of shared memory buffering to use
+#if __CUDA_ARCH__ < 300 
+#define BUFFER_DEPTH 2 // Fermi optimal setting
+#else 
+#define BUFFER_DEPTH 4 // Kepler optimal setting
+#endif
+
   //get local thread ID
   unsigned int ty = threadIdx.y;
   unsigned int tx = threadIdx.x;
@@ -247,13 +254,21 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
   //declare shared memory for input coalescing
 
 #if SHARED_ATOMIC_SIZE == 4
-  __shared__ float input[2][16*TILE_WIDTH]; // 4* for float4, 4* for 2x2 tile size
+  __shared__ float input[BUFFER_DEPTH][16*TILE_WIDTH]; // 4* for float4, 4* for 2x2 tile size
   float *input0_p = input[0] + tid;
   float *input1_p = input[1] + tid;
+#if BUFFER_DEPTH == 4
+  float *input2_p = input[2] + tid;
+  float *input3_p = input[3] + tid;
+#endif // BUFFER_DEPTH==4
 #else
-  __shared__ float2 input[2][8*TILE_WIDTH]; // 2* for float4/float2, 4* for 2x2 tile size
+  __shared__ float2 input[BUFFER_DEPTH][8*TILE_WIDTH]; // 2* for float4/float2, 4* for 2x2 tile size
   float2 *input0_p = input[0] + tid;
   float2 *input1_p = input[1] + tid;
+#if BUFFER_DEPTH == 4
+  float *input2_p = input[2] + tid;
+  float *input3_p = input[3] + tid;
+#endif // BUFFER_DEPTH==4
 #endif
 
   //instantiate sum variables
@@ -292,41 +307,76 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
     // threads 32..63 now have offset 64..95
     input0_p += 4*TILE_WIDTH;
     input1_p += 4*TILE_WIDTH;
+#if BUFFER_DEPTH==4
+    input2_p += 4*TILE_WIDTH;
+    input3_p += 4*TILE_WIDTH;
+#endif // BUFFER_DEPTH=4
 #endif
   }
 
+#if BUFFER_DEPTH==2
   LOAD(0, 0);
+#elif BUFFER_DEPTH==4
+  LOAD(0, 0);
+  LOAD(1, 1);
+#endif
 
+#if __CUDA_ARCH__ < 300
 #pragma unroll 2
-  for(unsigned int t=0; t<NTIME_PIPE-2; t+=2){
-    //for(float t=0.0f; t<(float)NTIME_PIPE-2.0f; /*t+=2.0f*/){
+#else
+#pragma unroll 1
+#endif
+  for(unsigned int t=0; t<NTIME_PIPE-BUFFER_DEPTH; t+=BUFFER_DEPTH){
 
     __syncthreads();
 
+#if BUFFER_DEPTH==2
     TWO_BY_TWO_COMPUTE(0);
-
-    //t += 1.0f;
-    //LOAD(1, t);    
     LOAD(1, t+1);
+#elif BUFFER_DEPTH==4
+    TWO_BY_TWO_COMPUTE(0);
+    TWO_BY_TWO_COMPUTE(1);
+    LOAD(2, t+2);
+    LOAD(3, t+3);
+#endif
 
     __syncthreads();
 
-    TWO_BY_TWO_COMPUTE(1);
 
-    //t += 1.0f;
-    //LOAD(0, t);
+#if BUFFER_DEPTH==2
+    TWO_BY_TWO_COMPUTE(1);
     LOAD(0, t+2);
+#elif BUFFER_DEPTH==4
+    TWO_BY_TWO_COMPUTE(2);
+    TWO_BY_TWO_COMPUTE(3);
+    LOAD(0, t+4);
+    LOAD(1, t+5);
+#endif
+
   } 
 
   __syncthreads();  
-  TWO_BY_TWO_COMPUTE(0);
 
+#if BUFFER_DEPTH==2
+  TWO_BY_TWO_COMPUTE(0);
   LOAD(1, NTIME_PIPE-1);
+#elif BUFFER_DEPTH==4
+  TWO_BY_TWO_COMPUTE(0);
+  TWO_BY_TWO_COMPUTE(1);
+  LOAD(2, NTIME_PIPE-2);
+  LOAD(3, NTIME_PIPE-1);
+#endif
 
   __syncthreads();
 
-  if (Col > Row) return; // writes seem faster when this is pulled up here
+#if BUFFER_DEPTH==2
   TWO_BY_TWO_COMPUTE(1);
+#elif BUFFER_DEPTH==4
+  TWO_BY_TWO_COMPUTE(2);
+  TWO_BY_TWO_COMPUTE(3);
+#endif
+
+  if (Col > Row) return; // writes seem faster when this is pulled up here
 
 #ifdef WRITE_OPTION
   if (write) {
