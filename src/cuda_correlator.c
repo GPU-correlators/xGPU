@@ -143,7 +143,7 @@ int main(int argc, char** argv) {
     goto cleanup;
   }
 
-#if (CUBE_MODE == CUBE_DEFAULT)
+#if (CUBE_MODE == CUBE_DEFAULT && !defined(POWER_LOOP) )
   // Only call CPU X engine if dumping GPU X engine
   printf("Calling CPU X-Engine\n");
   xgpuOmpXengine(omp_matrix_h, array_h);
