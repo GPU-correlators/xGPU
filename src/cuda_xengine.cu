@@ -58,11 +58,19 @@ typedef struct XGPUInternalContextStruct {
   // Host input array that we registered and should unregister
   ComplexInput * unregister_array_h;
 
+  // Whether xgpuSetHostInputBuffer has been called
+  bool array_h_set;
+  bool register_host_array;
+
   // Host output array that we allocated and should free
   Complex * free_matrix_h;
 
   // Host output array that we registered and should unregister
   Complex * unregister_matrix_h;
+
+  // Whether xgpuSetHostOutputBuffer has been called
+  bool matrix_h_set;
+  bool register_host_matrix;
 } XGPUInternalContext;
 
 #define TILE_HEIGHT 8
@@ -225,6 +233,13 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
 {
   CUBE_START;
 
+// Set the degree of shared memory buffering to use
+#if __CUDA_ARCH__ < 300 
+#define BUFFER_DEPTH 2 // Fermi optimal setting
+#else 
+#define BUFFER_DEPTH 4 // Kepler optimal setting
+#endif
+
   //get local thread ID
   unsigned int ty = threadIdx.y;
   unsigned int tx = threadIdx.x;
@@ -239,13 +254,21 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
   //declare shared memory for input coalescing
 
 #if SHARED_ATOMIC_SIZE == 4
-  __shared__ float input[2][16*TILE_WIDTH]; // 4* for float4, 4* for 2x2 tile size
+  __shared__ float input[BUFFER_DEPTH][16*TILE_WIDTH]; // 4* for float4, 4* for 2x2 tile size
   float *input0_p = input[0] + tid;
   float *input1_p = input[1] + tid;
+#if BUFFER_DEPTH == 4
+  float *input2_p = input[2] + tid;
+  float *input3_p = input[3] + tid;
+#endif // BUFFER_DEPTH==4
 #else
-  __shared__ float2 input[2][8*TILE_WIDTH]; // 2* for float4/float2, 4* for 2x2 tile size
+  __shared__ float2 input[BUFFER_DEPTH][8*TILE_WIDTH]; // 2* for float4/float2, 4* for 2x2 tile size
   float2 *input0_p = input[0] + tid;
   float2 *input1_p = input[1] + tid;
+#if BUFFER_DEPTH == 4
+  float2 *input2_p = input[2] + tid;
+  float2 *input3_p = input[3] + tid;
+#endif // BUFFER_DEPTH==4
 #endif
 
   //instantiate sum variables
@@ -284,41 +307,76 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
     // threads 32..63 now have offset 64..95
     input0_p += 4*TILE_WIDTH;
     input1_p += 4*TILE_WIDTH;
+#if BUFFER_DEPTH==4
+    input2_p += 4*TILE_WIDTH;
+    input3_p += 4*TILE_WIDTH;
+#endif // BUFFER_DEPTH=4
 #endif
   }
 
+#if BUFFER_DEPTH==2
   LOAD(0, 0);
+#elif BUFFER_DEPTH==4
+  LOAD(0, 0);
+  LOAD(1, 1);
+#endif
 
+#if __CUDA_ARCH__ < 300
 #pragma unroll 2
-  for(unsigned int t=0; t<NTIME_PIPE-2; t+=2){
-    //for(float t=0.0f; t<(float)NTIME_PIPE-2.0f; /*t+=2.0f*/){
+#else
+#pragma unroll 1
+#endif
+  for(unsigned int t=0; t<NTIME_PIPE-BUFFER_DEPTH; t+=BUFFER_DEPTH){
 
     __syncthreads();
 
+#if BUFFER_DEPTH==2
     TWO_BY_TWO_COMPUTE(0);
-
-    //t += 1.0f;
-    //LOAD(1, t);    
     LOAD(1, t+1);
+#elif BUFFER_DEPTH==4
+    TWO_BY_TWO_COMPUTE(0);
+    TWO_BY_TWO_COMPUTE(1);
+    LOAD(2, t+2);
+    LOAD(3, t+3);
+#endif
 
     __syncthreads();
 
-    TWO_BY_TWO_COMPUTE(1);
 
-    //t += 1.0f;
-    //LOAD(0, t);
+#if BUFFER_DEPTH==2
+    TWO_BY_TWO_COMPUTE(1);
     LOAD(0, t+2);
+#elif BUFFER_DEPTH==4
+    TWO_BY_TWO_COMPUTE(2);
+    TWO_BY_TWO_COMPUTE(3);
+    LOAD(0, t+4);
+    LOAD(1, t+5);
+#endif
+
   } 
 
   __syncthreads();  
-  TWO_BY_TWO_COMPUTE(0);
 
+#if BUFFER_DEPTH==2
+  TWO_BY_TWO_COMPUTE(0);
   LOAD(1, NTIME_PIPE-1);
+#elif BUFFER_DEPTH==4
+  TWO_BY_TWO_COMPUTE(0);
+  TWO_BY_TWO_COMPUTE(1);
+  LOAD(2, NTIME_PIPE-2);
+  LOAD(3, NTIME_PIPE-1);
+#endif
 
   __syncthreads();
 
-  if (Col > Row) return; // writes seem faster when this is pulled up here
+#if BUFFER_DEPTH==2
   TWO_BY_TWO_COMPUTE(1);
+#elif BUFFER_DEPTH==4
+  TWO_BY_TWO_COMPUTE(2);
+  TWO_BY_TWO_COMPUTE(3);
+#endif
+
+  if (Col > Row) return; // writes seem faster when this is pulled up here
 
 #ifdef WRITE_OPTION
   if (write) {
@@ -407,7 +465,7 @@ void xgpuInfo(XGPUInfo *pcxs)
 // was allocated).
 //
 // TODO Cleanup as needed if returning due to error
-int xgpuInit(XGPUContext *context, int device)
+int xgpuInit(XGPUContext *context, int device_flags)
 {
   int error = XGPU_OK;
 
@@ -420,26 +478,40 @@ int xgpuInit(XGPUContext *context, int device)
     return XGPU_OUT_OF_MEMORY;
   }
   context->internal = internal;
-  internal->device = device;
+  internal->device = device_flags & XGPU_DEVICE_MASK;
+  internal->array_h_set  = false;
+  internal->matrix_h_set = false;
+  internal->register_host_array  = true;
+  internal->register_host_matrix = true;
+  if( device_flags & XGPU_DONT_REGISTER_ARRAY ) {
+	  internal->register_host_array = false;
+  }
+  if( device_flags & XGPU_DONT_REGISTER_MATRIX ) {
+	  internal->register_host_matrix = false;
+  }
 
   long long unsigned int vecLengthPipe = compiletime_info.vecLengthPipe;
   long long unsigned int matLength = compiletime_info.matLength;
 
   //assign the device
-  cudaSetDevice(device);
+  cudaSetDevice(internal->device);
   checkCudaError();
 
   // Setup input buffer
   internal->unregister_array_h = NULL;
   internal->free_array_h = NULL;
-  // TODO error check
-  xgpuSetHostInputBuffer(context);
+  if( internal->register_host_array ) {
+	  // TODO error check
+	  xgpuSetHostInputBuffer(context);
+  }
 
   // Setup output buffer
   internal->unregister_matrix_h = NULL;
   internal->free_matrix_h = NULL;
-  // TODO error check
-  xgpuSetHostOutputBuffer(context);
+  if( internal->register_host_matrix ) {
+	  // TODO error check
+	  xgpuSetHostOutputBuffer(context);
+  }
 
   //allocate memory on device
   cudaMalloc((void **) &(internal->array_d[0]), vecLengthPipe*sizeof(ComplexInput));
@@ -491,7 +563,7 @@ int xgpuInit(XGPUContext *context, int device)
 
   // check whether texture dimensions are ok
   cudaDeviceProp deviceProp;
-  cudaGetDeviceProperties(&deviceProp, device);
+  cudaGetDeviceProperties(&deviceProp, internal->device);
 
 #if TEXTURE_DIM == 2
   if((NFREQUENCY * NSTATION * NPOL > deviceProp.maxTexture2D[0]) ||
@@ -545,6 +617,9 @@ int xgpuSetHostInputBuffer(XGPUContext *context)
   if(!internal) {
     return XGPU_NOT_INITIALIZED;
   }
+
+  internal->array_h_set = true;
+
   //assign the device
   CLOCK_GETTIME(CLOCK_MONOTONIC, &a);
   cudaSetDevice(internal->device);
@@ -565,30 +640,36 @@ int xgpuSetHostInputBuffer(XGPUContext *context)
   }
 
   if(context->array_h) {
-    // Register caller-allocated host memory with CUDA.
-    // Round address down to nearest page_size boundary
-    uintptr_t ptr_in = (uintptr_t)context->array_h;
-    uintptr_t ptr_aligned = ptr_in - (ptr_in % page_size);
-    // Compute length starting with compile time requirement
-    size_t length = context->array_len * sizeof(ComplexInput);
-    // TODO Verify that length is at least
-    // "compiletime_info.vecLength*sizeof(ComplexInput)"
+    if( internal->register_host_array ) {
+      // Register caller-allocated host memory with CUDA.
+      // Round address down to nearest page_size boundary
+      uintptr_t ptr_in = (uintptr_t)context->array_h;
+      uintptr_t ptr_aligned = ptr_in - (ptr_in % page_size);
+      // Compute length starting with compile time requirement
+      size_t length = context->array_len * sizeof(ComplexInput);
+      // TODO Verify that length is at least
+      // "compiletime_info.vecLength*sizeof(ComplexInput)"
 
-    // Add in any rounding that was done to the input pointer
-    length += (ptr_in - ptr_aligned);
-    // Round length up to next multiple of page size
-    length = (length+page_size-1) / page_size * page_size;
+      // Add in any rounding that was done to the input pointer
+      length += (ptr_in - ptr_aligned);
+      // Round length up to next multiple of page size
+      length = (length+page_size-1) / page_size * page_size;
 #ifdef VERBOSE
-    fprintf(stderr, "page aligned context->array_h = %p\n", ptr_aligned);
-    fprintf(stderr, "length = %lx\n", length);
+      fprintf(stderr, "page aligned context->array_h = %p\n", ptr_aligned);
+      fprintf(stderr, "length = %lx\n", length);
 #endif
-    CLOCK_GETTIME(CLOCK_MONOTONIC, &a);
-    cudaHostRegister((void *)ptr_aligned, length, 0);
-    CLOCK_GETTIME(CLOCK_MONOTONIC, &b);
-    PRINT_ELAPASED("cudaHostRegister", ELAPSED_NS(a,b));
-    internal->unregister_array_h = (ComplexInput *)ptr_aligned;
-    internal->free_array_h = NULL;
-    checkCudaError();
+      CLOCK_GETTIME(CLOCK_MONOTONIC, &a);
+      cudaHostRegister((void *)ptr_aligned, length, 0);
+      CLOCK_GETTIME(CLOCK_MONOTONIC, &b);
+      PRINT_ELAPASED("cudaHostRegister", ELAPSED_NS(a,b));
+      internal->unregister_array_h = (ComplexInput *)ptr_aligned;
+      internal->free_array_h = NULL;
+      checkCudaError();
+    }
+    else {
+      internal->unregister_array_h = NULL;
+      internal->free_array_h = NULL;
+    }
   } else {
     // allocate host memory
     context->array_len = compiletime_info.vecLength;
@@ -614,6 +695,9 @@ int xgpuSetHostOutputBuffer(XGPUContext *context)
   if(!internal) {
     return XGPU_NOT_INITIALIZED;
   }
+
+  internal->matrix_h_set = true;
+
   //assign the device
   cudaSetDevice(internal->device);
 
@@ -625,29 +709,35 @@ int xgpuSetHostOutputBuffer(XGPUContext *context)
   }
 
   if(context->matrix_h) {
-    // Register caller-allocated host memory with CUDA.
-    // This requires that the caller allocated the memory properly vis-a-vis
-    // the requirements of cudaHostRegister!
-    // Round address down to nearest page_size boundary
-    uintptr_t ptr_in = (uintptr_t)context->matrix_h;
-    uintptr_t ptr_aligned = ptr_in - (ptr_in % page_size);
-    // Compute length starting with compile time requirement
-    size_t length = context->matrix_len * sizeof(Complex);
-    // TODO Verify that length is at least
-    // "compiletime_info.matLength*sizeof(Complex)"
+    if( internal->register_host_matrix ) {
+      // Register caller-allocated host memory with CUDA.
+      // This requires that the caller allocated the memory properly vis-a-vis
+      // the requirements of cudaHostRegister!
+      // Round address down to nearest page_size boundary
+      uintptr_t ptr_in = (uintptr_t)context->matrix_h;
+      uintptr_t ptr_aligned = ptr_in - (ptr_in % page_size);
+      // Compute length starting with compile time requirement
+      size_t length = context->matrix_len * sizeof(Complex);
+      // TODO Verify that length is at least
+      // "compiletime_info.matLength*sizeof(Complex)"
 
-    // Add in any rounding that was done to the input pointer
-    length += (ptr_in - ptr_aligned);
-    // Round length up to next multiple of page size
-    length = (length+page_size-1) / page_size * page_size;
+      // Add in any rounding that was done to the input pointer
+      length += (ptr_in - ptr_aligned);
+      // Round length up to next multiple of page size
+      length = (length+page_size-1) / page_size * page_size;
 #ifdef VERBOSE
-    fprintf(stderr, "page aligned context->matrix_h = %p\n", ptr_aligned);
-    fprintf(stderr, "length = %lx\n", length);
+      fprintf(stderr, "page aligned context->matrix_h = %p\n", ptr_aligned);
+      fprintf(stderr, "length = %lx\n", length);
 #endif
-    cudaHostRegister((void *)ptr_aligned, length, 0);
-    internal->unregister_matrix_h = (Complex *)ptr_aligned;
-    internal->free_matrix_h = NULL;
-    checkCudaError();
+      cudaHostRegister((void *)ptr_aligned, length, 0);
+      internal->unregister_matrix_h = (Complex *)ptr_aligned;
+      internal->free_matrix_h = NULL;
+      checkCudaError();
+    }
+    else {
+      internal->unregister_matrix_h = NULL;
+      internal->free_matrix_h = NULL;
+    }
   } else {
     // allocate host memory
     context->matrix_len = compiletime_info.matLength;
@@ -712,6 +802,12 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
   if(!internal) {
     return XGPU_NOT_INITIALIZED;
   }
+
+  // xgpuSetHostInputBuffer and xgpuSetHostOutputBuffer must have been called
+  if( !internal->array_h_set || !internal->matrix_h_set ) {
+    return XGPU_HOST_BUFFER_NOT_SET;
+  }
+
   //assign the device
   cudaSetDevice(internal->device);
 
@@ -749,7 +845,7 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
   CUBE_ASYNC_START(PIPELINE_LOOP);
 
 #ifdef POWER_LOOP
-  for (int q=0; ; q++) 
+  for (int q=0; ; q++)
 #endif
   for (int p=1; p<PIPE_LENGTH; p++) {
     array_compute = array_d[(p+1)%2];
@@ -769,9 +865,8 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
     checkCudaError();
 
     // Download next chunk of input data
-    array_hp += vecLengthPipe;
     cudaStreamWaitEvent(streams[0], kernelCompletion[p%2], 0); // only start the transfer once the kernel has completed
-    CUBE_ASYNC_COPY_CALL(array_load, array_hp, vecLengthPipe*sizeof(ComplexInput), cudaMemcpyHostToDevice, streams[0]);
+    CUBE_ASYNC_COPY_CALL(array_load, array_hp+p*vecLengthPipe, vecLengthPipe*sizeof(ComplexInput), cudaMemcpyHostToDevice, streams[0]);
     cudaEventRecord(copyCompletion[p%2], streams[0]); // record the completion of the h2d transfer
     checkCudaError();
   }

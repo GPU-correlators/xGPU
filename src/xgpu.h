@@ -39,6 +39,13 @@ typedef struct ComplexStruct {
 #define REAL_IMAG_TRIANGULAR_ORDER 2000
 #define REGISTER_TILE_TRIANGULAR_ORDER 3000
 
+// Flags for xgpuInit
+#define XGPU_DEVICE_MASK          ((1<<16)-1)
+#define XGPU_DONT_REGISTER_ARRAY  (1<<16)
+#define XGPU_DONT_REGISTER_MATRIX (1<<17)
+#define XGPU_DONT_REGISTER        (XGPU_DONT_REGISTER_ARRAY | \
+                                   XGPU_DONT_REGISTER_MATRIX)
+
 // XGPUInfo is used to convey the compile-time X engine sizing
 // parameters of the XGPU library.  It should be allocated by the caller and
 // passed (via a pointer) to xInfo() which will fill in the fields.  Note that
@@ -102,6 +109,7 @@ typedef struct XGPUContextStruct {
 #define XGPU_CUDA_ERROR                  (2)
 #define XGPU_INSUFFICIENT_TEXTURE_MEMORY (3)
 #define XGPU_NOT_INITIALIZED             (4)
+#define XGPU_HOST_BUFFER_NOT_SET         (5)
 
 // Values for xgpuCudaXengine's syncOp parameter
 #define SYNCOP_NONE           0
@@ -138,7 +146,17 @@ void xgpuInfo(XGPUInfo *pcxs);
 // the appropriate size) via CudaMallocHost, otherwise the memory region
 // pointed to by context->matrix_h of length context->matrix_len if registered
 // with CUDA via the CudaHostRegister function.
-int xgpuInit(XGPUContext *context, int device);
+//
+// The index of the GPU device should be put into device_flags. In addition,
+// the following optional flags can be or'd into this value:
+//   XGPU_DONT_REGISTER_ARRAY   Disables registering (pinning) of host array
+//   XGPU_DONT_REGISTER_MATRIX  Disables registering (pinning) of host matrix
+//   XGPU_DONT_REGISTER         Disables registering (pinning) of all host mem
+// E.g., xgpuInit(&ctx, device_idx | XGPU_DONT_REGISTER_ARRAY);
+//
+// Note that if registering is disabled, the corresponding xgpuSetHost*Buffer
+// function _must_ be called prior to calling xgpuCudaXengine.
+int xgpuInit(XGPUContext *context, int device_flags);
 
 // Clear the device integration buffer
 //

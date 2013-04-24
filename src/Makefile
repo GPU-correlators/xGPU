@@ -2,11 +2,13 @@
 # (usually sizing for a specific project)
 -include Makefile.local
 
-CUDA_LIBDIR ?= /opt/cuda/lib64
+CUDA_DIR ?= /usr/local/cuda
+CUDA_LIBDIR ?= $(CUDA_DIR)/lib64
 DEBUG ?= -O3
 TEXTURE_DIM ?= 1
+CUDA_ARCH ?= sm_20
 
-NVCC = nvcc
+NVCC = $(CUDA_DIR)/bin/nvcc
 prefix ?= /usr/local
 bindir ?= $(prefix)/bin
 libdir ?= $(prefix)/lib
@@ -24,8 +26,12 @@ RPATH = -Xlinker -rpath,'$${ORIGIN}:$${ORIGIN}/../lib'
 LIBXGPU = libxgpu.so
 endif
 
-NVCCFLAGS += $(DEBUG) -arch=sm_20 -Xptxas -abi=no --ptxas-options=-v -prec-sqrt=false -Xcompiler -fPIC
+NVCCFLAGS += $(DEBUG) -arch=$(CUDA_ARCH) -Xptxas -abi=no --ptxas-options=-v -prec-sqrt=false -Xcompiler -fPIC
 NVCCFLAGS += -DTEXTURE_DIM=$(TEXTURE_DIM)
+
+ifeq ($(strip $(CUDA_ARCH)),sm_35)
+NVCCFLAGS += -maxrregcount=72
+endif
 
 #NVCCFLAGS += -Xptxas -dlcm=cg # disable L1 cache
 
@@ -132,10 +138,10 @@ DEPS = $(BINXGPU_OBJS:.o=.d) $(LIBXGPU_OBJS:.o=.d)
 all: cuda_correlator xgpuinfo $(LIBXGPU)
 
 cuda_correlator: $(CUDA_CORRELATOR_OBJS) $(LIBXGPU)
-	$(NVCC) $(NVCCFLAGS) $^ -o $@ $(LFLAGS) $(RPATH) -lxgpu -lrt
+	$(NVCC) $(NVCCFLAGS) $(CUDA_CORRELATOR_OBJS) -o $@ $(LFLAGS) $(RPATH) -lxgpu -lrt
 
 xgpuinfo: $(XGPUINFO_OBJS) $(LIBXGPU)
-	$(NVCC) $(NVCCFLAGS) $^ -o $@ $(LFLAGS) $(RPATH) -lxgpu
+	$(NVCC) $(NVCCFLAGS) $(XGPUINFO_OBJS) -o $@ $(LFLAGS) $(RPATH) -lxgpu
 
 $(LIBXGPU): $(LIBXGPU_OBJS)
 	$(NVCC) $(NVCCFLAGS) $^ -o $@ $(LFLAGS) --shared

@@ -9,29 +9,46 @@ exec 3>&1
 exec 1>/dev/null
 exec 2>/dev/null
 
+BENCH_DEVICE=0 #default device number
 syncOp=1 # Dump
-if [ "${1}" == "-o" ]
-then
-  shift
-  syncOp=$1
-  shift
-fi
+
+# options to be passed to executable.  These must appear before make options
+for i in "$@"
+do
+echo $i
+echo $i | sed 's/[-a-zA-Z0-9]*=//'
+case $i in
+    -o=*|--operation=*)
+    syncOp=`echo $i | sed 's/[-a-zA-Z0-9]*=//'`
+    shift
+    ;;
+
+    -d=*|--device=*)
+    BENCH_DEVICE=`echo $i | sed 's/[-a-zA-Z0-9]*=//'`
+    shift
+    ;;
+
+    *)
+            # unknown option
+    ;;
+esac
+done
 
 make clean
 make cuda_correlator CUBE_COUNT_MODE=1 OSTYPE=$OSTYPE "$@"
-./cuda_correlator -o $syncOp
+./cuda_correlator -o $syncOp -d $BENCH_DEVICE
 
 make clean
 make cuda_correlator CUBE_TIME_MODE=1 OSTYPE=$OSTYPE "$@"
-./cuda_correlator -o $syncOp
+./cuda_correlator -o $syncOp -d $BENCH_DEVICE
 
 make clean
 make cuda_correlator CUBE_ASYNC_COUNT_MODE=1 OSTYPE=$OSTYPE "$@"
-./cuda_correlator -o $syncOp
+./cuda_correlator -o $syncOp -d $BENCH_DEVICE
 
 make clean
 make cuda_correlator CUBE_ASYNC_TIME_MODE=1 OSTYPE=$OSTYPE "$@"
-./cuda_correlator -o $syncOp
+./cuda_correlator -o $syncOp -d $BENCH_DEVICE
 
 # Rebuild a non-benchmarking version
 make clean

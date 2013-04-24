@@ -153,7 +153,7 @@ int main(int argc, char** argv) {
     goto cleanup;
   }
 
-#if (CUBE_MODE == CUBE_DEFAULT)
+#if (CUBE_MODE == CUBE_DEFAULT && !defined(POWER_LOOP) )
   // Only call CPU X engine if dumping GPU X engine exactly once
   if(finalSyncOp == SYNCOP_DUMP && count*outer_count == 1) {
     printf("Calling CPU X-Engine\n");
