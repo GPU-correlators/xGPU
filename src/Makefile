@@ -13,6 +13,8 @@ prefix ?= /usr/local
 bindir ?= $(prefix)/bin
 libdir ?= $(prefix)/lib
 includedir ?= $(prefix)/include
+datadir ?= $(prefix)/share
+aclocaldir ?= $(datadir)/aclocal
 
 ifeq ($(strip $(OSTYPE)),cygwin)
 NVCCFLAGS = --compiler-bindir "c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin" -Xcompiler /openmp
@@ -183,6 +185,8 @@ install: cuda_correlator xgpuinfo $(LIBXGPU)
 	cp xgpu.h $(includedir)
 	mkdir -p $(libdir)
 	cp $(LIBXGPU) $(libdir)
+	mkdir -p $(aclocaldir)
+	cp xgpu.m4 $(aclocaldir)
 
 uninstall:
 	rm -f $(bindir)/xgpuinfo
