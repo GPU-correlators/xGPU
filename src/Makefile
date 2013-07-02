@@ -189,9 +189,11 @@ install: cuda_correlator xgpuinfo $(LIBXGPU)
 	cp xgpu.m4 $(aclocaldir)
 
 uninstall:
+	rm -f $(bindir)/cuda_correlator
 	rm -f $(bindir)/xgpuinfo
 	rm -f $(includedir)/xgpu.h
 	rm -f $(libdir)/$(LIBXGPU)
+	rm -f $(aclocaldir)/xgpu.m4
 
 tags:
 	ctags -R .
