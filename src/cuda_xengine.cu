@@ -405,29 +405,29 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
 #undef TWO_BY_TWO_COMPUTE
 
 static XGPUInfo compiletime_info = {
-  npol:          NPOL,
-  nstation:      NSTATION,
-  nbaseline:     NBASELINE,
-  nfrequency:    NFREQUENCY,
-  ntime:         NTIME,
-  ntimepipe:     NTIME_PIPE,
+  .npol =        NPOL,
+  .nstation =    NSTATION,
+  .nbaseline =   NBASELINE,
+  .nfrequency =  NFREQUENCY,
+  .ntime =       NTIME,
+  .ntimepipe =   NTIME_PIPE,
 #ifdef FIXED_POINT
-  input_type:    XGPU_INT8,
+  .input_type =  XGPU_INT8,
 #else
-  input_type:    XGPU_FLOAT32,
+  .input_type =  XGPU_FLOAT32,
 #endif
-  vecLength:     NFREQUENCY * NTIME * NSTATION * NPOL,
-  vecLengthPipe: NFREQUENCY * NTIME_PIPE * NSTATION * NPOL,
+  .vecLength  =  NFREQUENCY * NTIME * NSTATION * NPOL,
+  .vecLengthPipe = NFREQUENCY * NTIME_PIPE * NSTATION * NPOL,
 #if (MATRIX_ORDER == REGISTER_TILE_TRIANGULAR_ORDER)
-  matLength:     NFREQUENCY * ((NSTATION/2+1)*(NSTATION/4)*NPOL*NPOL*4) * (NPULSAR + 1),
+  .matLength =   NFREQUENCY * ((NSTATION/2+1)*(NSTATION/4)*NPOL*NPOL*4) * (NPULSAR + 1),
 #else
   // Matrix length is same for REAL_IMAG_TRIANGULAR_ORDER and TRIANGULAR_ORDER
-  matLength:     NFREQUENCY * ((NSTATION+1)*(NSTATION/2)*NPOL*NPOL) * (NPULSAR + 1),
+  .matLength =   NFREQUENCY * ((NSTATION+1)*(NSTATION/2)*NPOL*NPOL) * (NPULSAR + 1),
 #endif
-  triLength:     NFREQUENCY * ((NSTATION+1)*(NSTATION/2)*NPOL*NPOL) * (NPULSAR + 1),
-  matrix_order:  MATRIX_ORDER,
-  shared_atomic_size : SHARED_ATOMIC_SIZE,
-  complex_block_size: COMPLEX_BLOCK_SIZE
+  .triLength =   NFREQUENCY * ((NSTATION+1)*(NSTATION/2)*NPOL*NPOL) * (NPULSAR + 1),
+  .matrix_order = MATRIX_ORDER,
+  .shared_atomic_size = SHARED_ATOMIC_SIZE,
+  .complex_block_size = COMPLEX_BLOCK_SIZE
 };
 
 // This stringification trick is from "info cpp"

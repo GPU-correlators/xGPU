@@ -3,7 +3,12 @@
 -include Makefile.local
 
 CUDA_DIR ?= /usr/local/cuda
+ifneq ($(strip $(OSTYPE)),osx)
 CUDA_LIBDIR ?= $(CUDA_DIR)/lib64
+else
+CUDA_LIBDIR ?= $(CUDA_DIR)/lib
+endif
+
 DEBUG ?= -O3
 TEXTURE_DIM ?= 1
 CUDA_ARCH ?= sm_20
@@ -20,8 +25,21 @@ LFLAGS = -L"c:\Program Files\Microsoft SDKs\Windows\v7.1\Lib" -L.
 RPATH =
 LIBXGPU = libxgpu.dll
 else
-NVCCFLAGS = -Xcompiler -fopenmp -Xcompiler -D_REENTRANT -Xcompiler -Wall
-LFLAGS = -L$(CUDA_LIBDIR) -L. -lrt #-lcudart
+
+NVCCFLAGS = -Xcompiler -D_REENTRANT -Xcompiler -Wall -Xcompiler -Wno-unused-function
+
+ifneq ($(strip $(OSTYPE)),osx)
+NVCCFLAGS += -Xcompiler -fopenmp 
+else
+NVCCFLAGS += -Xcompiler -Wno-unknown-pragmas -Xcompiler -Wno-gnu-designator
+endif
+
+ifneq ($(strip $(OSTYPE)),osx)
+LFLAGS = -L$(CUDA_LIBDIR) -L. -lrt
+else
+LFLAGS = -L$(CUDA_LIBDIR) -L. -lcudart
+endif
+
 RPATH = -Xlinker -rpath,'$${ORIGIN}:$${ORIGIN}/../lib'
 LIBXGPU = libxgpu.so
 endif
