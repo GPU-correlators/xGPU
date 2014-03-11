@@ -152,6 +152,12 @@ void xgpuCheckResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *arra
 	  for(f=0; f<NFREQUENCY; f++){
 	    int k = f*(NSTATION+1)*(NSTATION/2) + i*(i+1)/2 + j;
 	    int index = (k*NPOL+pol1)*NPOL+pol2;
+
+#ifdef FIXED_POINT
+	    gpu[index].real = round(gpu[index].real);
+	    gpu[index].imag = round(gpu[index].imag);
+#endif
+
 	    if(zabs(cpu[index]) == 0) {
 	      error = zabs(gpu[index]);
 	    } else {
