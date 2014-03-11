@@ -493,6 +493,22 @@ int xgpuInit(XGPUContext *context, int device_flags)
   long long unsigned int vecLengthPipe = compiletime_info.vecLengthPipe;
   long long unsigned int matLength = compiletime_info.matLength;
 
+  int deviceCount;
+  cudaGetDeviceCount(&deviceCount);
+  if (deviceCount == 0) {
+    printf("No CUDA devices found");
+    exit(-1);
+  }
+
+  cudaDeviceProp deviceProp;
+  for(int i=0; i<deviceCount; i++) {
+    cudaGetDeviceProperties(&deviceProp, i);
+    printf("Found device %d: %s\n", i, deviceProp.name);
+  }
+
+  cudaGetDeviceProperties(&deviceProp, internal->device);
+  printf("Using device %d: %s\n", internal->device, deviceProp.name);
+
   //assign the device
   cudaSetDevice(internal->device);
   checkCudaError();
@@ -562,9 +578,6 @@ int xgpuInit(XGPUContext *context, int device_flags)
 #endif
 
   // check whether texture dimensions are ok
-  cudaDeviceProp deviceProp;
-  cudaGetDeviceProperties(&deviceProp, internal->device);
-
 #if TEXTURE_DIM == 2
   if((NFREQUENCY * NSTATION * NPOL > deviceProp.maxTexture2D[0]) ||
      (NTIME_PIPE > deviceProp.maxTexture2D[1])) {
