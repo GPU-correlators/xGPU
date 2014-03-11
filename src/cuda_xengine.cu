@@ -114,7 +114,11 @@ static __device__ __constant__ unsigned char tIndex[PIPE_LENGTH*NFREQUENCY];
 //determine row and column from blockIdx.x
 CUBE_DEVICE(static void, findPosition, unsigned int &Col, unsigned int &Row, unsigned int &blockX, unsigned int &blockY) {
   unsigned int k = blockIdx.x;
+#if NSTATION >= 512
+  blockY = -0.5 + sqrt(0.25 + 2*k);
+#else
   blockY = -0.5f + sqrtf(0.25f + 2*k);
+#endif  
   blockX = k - (((blockY+1)*(blockY)) >> 1);
   Row = (blockY*TILE_HEIGHT + threadIdx.y);
   Col = (blockX*TILE_WIDTH + threadIdx.x);
