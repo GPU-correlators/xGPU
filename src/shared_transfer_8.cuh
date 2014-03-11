@@ -41,15 +41,42 @@
 
 // read in shared data as individual floats to avoid bank conflicts
 
+// Each thread loads 2 stations for a row (or column) x 2 polarities/station.
+// for a stride of 4 float2's (32B) if we keep data in order.  And the column
+// loads are 8 threads wide.  Not good on Maxwell with 32 4B banks; many banks
+// go unused, while others have two different addresses presented.
+// But we also want both polarities adjacent on Kepler: the compiler converts
+// 2 adjacent 64-bit loads to LDS.128, and the little binary patching program
+// turns these into LDS.U.128.
+ 
+// If STRUCT_OF_ARRAY is defined, arrange shared memory as 16 even stations,
+// then 16 odd stations (stride of 2 float2's), to make both chips happy.
+ 
+#ifdef STRUCT_OF_ARRAY
+#define TWO_BY_TWO_LOAD(s)                              \
+    float2 col1X = input[s][2*tx +  0];                          \
+    float2 col1Y = input[s][2*tx +  1];                          \
+    float2 row1X = input[s][2*ty +  0 + 4*TILE_WIDTH];  \
+    float2 row1Y = input[s][2*ty +  1 + 4*TILE_WIDTH];     \
+    float2 col2X = input[s][2*tx + 16];                          \
+    float2 col2Y = input[s][2*tx + 17];                          \
+    float2 row2X = input[s][2*ty + 16 + 4*TILE_WIDTH];     \
+    float2 row2Y = input[s][2*ty + 17 + 4*TILE_WIDTH];
+#else
+#define TWO_BY_TWO_LOAD(s)                              \
+    float2 col1X = input[s][4*tx + 0];                           \
+    float2 col1Y = input[s][4*tx + 1];                           \
+    float2 row1X = input[s][4*ty + 0 + 4*TILE_WIDTH];   \
+    float2 row1Y = input[s][4*ty + 1 + 4*TILE_WIDTH]; \
+    float2 col2X = input[s][4*tx + 2];                           \
+    float2 col2Y = input[s][4*tx + 3];                           \
+    float2 row2X = input[s][4*ty + 2 + 4*TILE_WIDTH]; \
+    float2 row2Y = input[s][4*ty + 3 + 4*TILE_WIDTH];
+#endif // STRUCT_OF_ARRAY
+
+ 
 #define TWO_BY_TWO_COMPUTE(s) {						\
-    float2 col1X = input[s][4*tx + 0];					\
-    float2 col1Y = input[s][4*tx + 1];					\
-    float2 row1X = input[s][4*ty + 0 + 4*TILE_WIDTH];			\
-    float2 row1Y = input[s][4*ty + 1 + 4*TILE_WIDTH];			\
-    float2 col2X = input[s][4*tx + 2];					\
-    float2 col2Y = input[s][4*tx + 3];					\
-    float2 row2X = input[s][4*ty + 2 + 4*TILE_WIDTH];			\
-    float2 row2Y = input[s][4*ty + 3 + 4*TILE_WIDTH];			\
+    TWO_BY_TWO_LOAD(s)							\
     sum11XXreal += row1X.x * col1X.x;					\
     sum11XXimag += row1X.y * col1X.x;					\
     sum11XXreal += row1X.y * col1X.y;					\
