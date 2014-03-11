@@ -51,6 +51,10 @@ ifeq ($(strip $(CUDA_ARCH)),sm_35)
 NVCCFLAGS += -maxrregcount=72
 endif
 
+ifeq ($(strip $(CUDA_ARCH)),sm_50)
+NVCCFLAGS += -maxrregcount=72
+endif
+
 #NVCCFLAGS += -Xptxas -dlcm=cg # disable L1 cache
 
 # Possibly (re-)build xgpu_version.h
