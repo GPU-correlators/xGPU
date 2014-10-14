@@ -26,7 +26,7 @@ RPATH =
 LIBXGPU = libxgpu.dll
 else
 
-NVCCFLAGS = -Xcompiler -D_REENTRANT -Xcompiler -Wall -Xcompiler -Wno-unused-function
+NVCCFLAGS = -Xcompiler -D_REENTRANT -Xcompiler -Wall -Xcompiler -Wno-unused-function -ftz=true
 
 ifneq ($(strip $(OSTYPE)),osx)
 NVCCFLAGS += -Xcompiler -fopenmp 
@@ -52,6 +52,10 @@ NVCCFLAGS += -maxrregcount=72
 endif
 
 ifeq ($(strip $(CUDA_ARCH)),sm_50)
+NVCCFLAGS += -maxrregcount=72
+endif
+
+ifeq ($(strip $(CUDA_ARCH)),sm_52)
 NVCCFLAGS += -maxrregcount=72
 endif
 
