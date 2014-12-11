@@ -53,29 +53,43 @@
 // then 16 odd stations (stride of 2 float2's), to make both chips happy.
  
 #ifdef STRUCT_OF_ARRAY
-#define TWO_BY_TWO_LOAD(s)                              \
-    float2 col1X = input[s][2*tx +  0];                          \
-    float2 col1Y = input[s][2*tx +  1];                          \
-    float2 row1X = input[s][2*ty +  0 + 4*TILE_WIDTH];  \
-    float2 row1Y = input[s][2*ty +  1 + 4*TILE_WIDTH];     \
-    float2 col2X = input[s][2*tx + 16];                          \
-    float2 col2Y = input[s][2*tx + 17];                          \
-    float2 row2X = input[s][2*ty + 16 + 4*TILE_WIDTH];     \
-    float2 row2Y = input[s][2*ty + 17 + 4*TILE_WIDTH];
+#define TWO_BY_TWO_LOAD(s)					 \
+  float2 col1X = input[s][2*tx +  0];				 \
+  float2 col1Y = input[s][2*tx +  1];				 \
+  float2 row1X = input[s][2*ty +  0 + 4*TILE_WIDTH];		 \
+  float2 row1Y = input[s][2*ty +  1 + 4*TILE_WIDTH];		 \
+  float2 col2X = input[s][2*tx + 16];				 \
+  float2 col2Y = input[s][2*tx + 17];				 \
+  float2 row2X = input[s][2*ty + 16 + 4*TILE_WIDTH];		 \
+  float2 row2Y = input[s][2*ty + 17 + 4*TILE_WIDTH];
 #else
-#define TWO_BY_TWO_LOAD(s)                              \
-    float2 col1X = input[s][4*tx + 0];                           \
-    float2 col1Y = input[s][4*tx + 1];                           \
-    float2 row1X = input[s][4*ty + 0 + 4*TILE_WIDTH];   \
-    float2 row1Y = input[s][4*ty + 1 + 4*TILE_WIDTH]; \
-    float2 col2X = input[s][4*tx + 2];                           \
-    float2 col2Y = input[s][4*tx + 3];                           \
-    float2 row2X = input[s][4*ty + 2 + 4*TILE_WIDTH]; \
-    float2 row2Y = input[s][4*ty + 3 + 4*TILE_WIDTH];
+#ifndef DIAG
+#define TWO_BY_TWO_LOAD(s)					 \
+  float2 col1X = input[s][4*tx + 0];				 \
+  float2 col1Y = input[s][4*tx + 1];				 \
+  float2 row1X = input[s][4*ty + 0 + 4*TILE_WIDTH];		 \
+  float2 row1Y = input[s][4*ty + 1 + 4*TILE_WIDTH];		 \
+  float2 col2X = input[s][4*tx + 2];				 \
+  float2 col2Y = input[s][4*tx + 3];				 \
+  float2 row2X = input[s][4*ty + 2 + 4*TILE_WIDTH];		 \
+  float2 row2Y = input[s][4*ty + 3 + 4*TILE_WIDTH];
+#else
+#define TWO_BY_TWO_LOAD(s)					       \
+  float2 col1X = input[s][warp][4*tx + 0];			       \
+  float2 col1Y = input[s][warp][4*tx + 1];			       \
+  float2 row1X = input[s][warp][4*ty + 0];			       \
+  float2 row1Y = input[s][warp][4*ty + 1];			       \
+  float2 col2X = input[s][warp][4*tx + 2];			       \
+  float2 col2Y = input[s][warp][4*tx + 3];			       \
+  float2 row2X = input[s][warp][4*ty + 2];			       \
+  float2 row2Y = input[s][warp][4*ty + 3];
+#endif // DIAG
+
 #endif // STRUCT_OF_ARRAY
 
  
 #define TWO_BY_TWO_COMPUTE(s) {						\
+		/*if( tid < 28 )*/ { \
     TWO_BY_TWO_LOAD(s)							\
     sum11XXreal += row1X.x * col1X.x;					\
     sum11XXimag += row1X.y * col1X.x;					\
@@ -141,5 +155,6 @@
     sum21YXimag += row2Y.y * col1X.x;					\
     sum21YXreal += row2Y.y * col1X.y;					\
     sum21YXimag -= row2Y.x * col1X.y;					\
+	} \
   }
 

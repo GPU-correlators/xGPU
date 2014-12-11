@@ -49,23 +49,45 @@
 // read in shared data as individual floats to avoid bank conflicts
 
 #if COMPLEX_BLOCK_SIZE == 1
-#define TWO_BY_TWO_PRELOAD(s)						\
- {float col1Xreal = input[s][4*tx                                   ];	\
-  float col1Ximag = input[s][4*tx     + 4*TILE_WIDTH                ];	\
-  float col1Yreal = input[s][4*tx + 1                               ];	\
-  float col1Yimag = input[s][4*tx + 1 + 4*TILE_WIDTH                ];	\
-  float col2Xreal = input[s][4*tx + 2                               ];	\
-  float col2Ximag = input[s][4*tx + 2 + 4*TILE_WIDTH                ];	\
-  float col2Yreal = input[s][4*tx + 3                               ];	\
-  float col2Yimag = input[s][4*tx + 3 + 4*TILE_WIDTH                ];	\
-  float row1Xreal = input[s][4*ty                     + 8*TILE_WIDTH];	\
-  float row1Ximag = input[s][4*ty     + 4*TILE_HEIGHT + 8*TILE_WIDTH];	\
-  float row1Yreal = input[s][4*ty + 1                 + 8*TILE_WIDTH];	\
-  float row1Yimag = input[s][4*ty + 1 + 4*TILE_HEIGHT + 8*TILE_WIDTH];	\
-  float row2Xreal = input[s][4*ty + 2                 + 8*TILE_WIDTH];	\
-  float row2Ximag = input[s][4*ty + 2 + 4*TILE_HEIGHT + 8*TILE_WIDTH];	\
-  float row2Yreal = input[s][4*ty + 3                 + 8*TILE_WIDTH];	\
+
+#ifndef DIAG
+#define TWO_BY_TWO_PRELOAD(s)					      \
+{float col1Xreal = input[s][4*tx                                   ]; \
+  float col1Ximag = input[s][4*tx     + 4*TILE_WIDTH                ]; \
+  float col1Yreal = input[s][4*tx + 1                               ]; \
+  float col1Yimag = input[s][4*tx + 1 + 4*TILE_WIDTH                ]; \
+  float col2Xreal = input[s][4*tx + 2                               ]; \
+  float col2Ximag = input[s][4*tx + 2 + 4*TILE_WIDTH                ]; \
+  float col2Yreal = input[s][4*tx + 3                               ]; \
+  float col2Yimag = input[s][4*tx + 3 + 4*TILE_WIDTH                ]; \
+  float row1Xreal = input[s][4*ty                     + 8*TILE_WIDTH]; \
+  float row1Ximag = input[s][4*ty     + 4*TILE_HEIGHT + 8*TILE_WIDTH]; \
+  float row1Yreal = input[s][4*ty + 1                 + 8*TILE_WIDTH]; \
+  float row1Yimag = input[s][4*ty + 1 + 4*TILE_HEIGHT + 8*TILE_WIDTH]; \
+  float row2Xreal = input[s][4*ty + 2                 + 8*TILE_WIDTH]; \
+  float row2Ximag = input[s][4*ty + 2 + 4*TILE_HEIGHT + 8*TILE_WIDTH]; \
+  float row2Yreal = input[s][4*ty + 3                 + 8*TILE_WIDTH]; \
   float row2Yimag = input[s][4*ty + 3 + 4*TILE_HEIGHT + 8*TILE_WIDTH];
+#else
+#define TWO_BY_TWO_PRELOAD(s)						\
+ {float col1Xreal = input[s][warp][4*tx                                   ];	\
+  float col1Ximag = input[s][warp][4*tx     + 4*TILE_WIDTH                ];	\
+  float col1Yreal = input[s][warp][4*tx + 1                               ];	\
+  float col1Yimag = input[s][warp][4*tx + 1 + 4*TILE_WIDTH                ];	\
+  float col2Xreal = input[s][warp][4*tx + 2                               ];	\
+  float col2Ximag = input[s][warp][4*tx + 2 + 4*TILE_WIDTH                ];	\
+  float col2Yreal = input[s][warp][4*tx + 3                               ];	\
+  float col2Yimag = input[s][warp][4*tx + 3 + 4*TILE_WIDTH                ];	\
+  float row1Xreal = input[s][warp][4*ty                    ];	\
+  float row1Ximag = input[s][warp][4*ty     + 4*TILE_HEIGHT];	\
+  float row1Yreal = input[s][warp][4*ty + 1                ];	\
+  float row1Yimag = input[s][warp][4*ty + 1 + 4*TILE_HEIGHT];	\
+  float row2Xreal = input[s][warp][4*ty + 2                ];	\
+  float row2Ximag = input[s][warp][4*ty + 2 + 4*TILE_HEIGHT];	\
+  float row2Yreal = input[s][warp][4*ty + 3                ];	\
+  float row2Yimag = input[s][warp][4*ty + 3 + 4*TILE_HEIGHT];
+#endif // DIAG
+
 #elif COMPLEX_BLOCK_SIZE == 32
 #define TWO_BY_TWO_PRELOAD(s)						\
  {float col1Xreal = input[s][2*tx                                  ];	\

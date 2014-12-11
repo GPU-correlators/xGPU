@@ -171,6 +171,7 @@ xgpuinfo: $(XGPUINFO_OBJS) $(LIBXGPU)
 
 $(LIBXGPU): $(LIBXGPU_OBJS)
 	$(NVCC) $(NVCCFLAGS) $^ -o $@ $(LFLAGS) --shared
+#       ./hackhex $@
 
 # A target to make all object files, but not link them
 objs: $(BINXGPU_OBJS) $(LIBXGPU_OBJS)

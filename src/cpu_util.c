@@ -147,6 +147,7 @@ void xgpuCheckResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *arra
 
   for(i=0; i<NSTATION; i++){
     for (j=0; j<=i; j++) {
+      //for (j=0; j<i; j++) { // exclude diagonal from check
       for (pol1=0; pol1<NPOL; pol1++) {
 	for (pol2=0; pol2<NPOL; pol2++) {
 	  for(f=0; f<NFREQUENCY; f++){
@@ -171,7 +172,7 @@ void xgpuCheckResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *arra
 	    }
 	    if(error > TOL) {
               if(verbose > 0) {
-                printf("%d %d %d %d %d %d %d %g  %g  %g  %g (%g %g)\n", f, i, j, k, pol1, pol2, index,
+                printf("%4d %4d %4d %4d %1d %1d %8d %g  %g  %g  %g (%g %g)\n", f, i, j, k, pol1, pol2, index,
                        cpu[index].real, gpu[index].real, cpu[index].imag, gpu[index].imag, zabs(cpu[index]), zabs(gpu[index]));
                 if(verbose > 1 && array_h) {
                   Complex sum;
