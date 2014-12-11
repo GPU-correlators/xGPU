@@ -186,6 +186,8 @@ CUBE_KERNEL(static __launch_bounds__(64, 12) shared2x2float2diag, float4 *matrix
 
   //set frequency number from blockIdx.y
   unsigned int f = blockIdx.y*2 + warp;
+  if (f >= NFREQUENCY) return;
+
   /*
   // Horizontal lower triangular including diagonal
   //int txs[] = {0,0,1,0,1,2,0,1,2,3,0,1,2,3,4,0,1,2,3,4,5,0,1,2,3,4,5,6,-1,-1,-1,-1};

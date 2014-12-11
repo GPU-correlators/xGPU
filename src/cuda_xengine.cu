@@ -559,7 +559,7 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
   } else { // launch parameters for diagonal kernel
     // keep the block size unchanged and have the second warp do another frequency
     dimBlock = dim3(TILE_WIDTH,TILE_HEIGHT,1);
-    dimGrid = dim3(((Nblock/2+1)*(Nblock/2))/2, compiletime_info.nfrequency/2);
+    dimGrid = dim3(((Nblock/2+1)*(Nblock/2))/2, (compiletime_info.nfrequency+1)/2);
   }
 
   CUBE_ASYNC_START(ENTIRE_PIPELINE);
