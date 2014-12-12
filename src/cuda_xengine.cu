@@ -546,20 +546,22 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
   float4 *matrix_imag_d = (float4 *)(internal->matrix_d + compiletime_info.matLength/2);
 
   int Nblock = compiletime_info.nstation/min(TILE_HEIGHT,TILE_WIDTH);
+
   ComplexInput *array_load;
   ComplexInput *array_compute; 
 
   const bool use_diagonal = false;
 
-  dim3 dimBlock, dimGrid;
+  dim3 dimBlock, dimGrid, dimGridDiag;
+  dimBlock = dim3(TILE_WIDTH,TILE_HEIGHT,1);
   if (!use_diagonal) {
-    dimBlock = dim3(TILE_WIDTH,TILE_HEIGHT,1);
-    //allocated exactly as many thread blocks as are needed
+    // allocated exactly as many thread blocks as are needed
     dimGrid = dim3(((Nblock/2+1)*(Nblock/2))/2, compiletime_info.nfrequency);
   } else { // launch parameters for diagonal kernel
-    // keep the block size unchanged and have the second warp do another frequency
-    dimBlock = dim3(TILE_WIDTH,TILE_HEIGHT,1);
-    dimGrid = dim3(((Nblock/2+1)*(Nblock/2))/2, (compiletime_info.nfrequency+1)/2);
+    // grid for strictly lower block triangular
+    dimGrid = dim3(((Nblock/2-1)*(Nblock/2))/2, compiletime_info.nfrequency);
+    // grid for block diagonal 
+    dimGridDiag = dim3(Nblock/2, (compiletime_info.nfrequency+1)/2);
   }
 
   CUBE_ASYNC_START(ENTIRE_PIPELINE);
@@ -593,10 +595,12 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
 #endif
     cudaStreamWaitEvent(streams[1], copyCompletion[(p+1)%2], 0); // only start the kernel once the h2d transfer is complete
     if (!use_diagonal) {
-      CUBE_ASYNC_KERNEL_CALL(shared2x2float2, dimGrid, dimBlock, 0, streams[1], 
+      CUBE_ASYNC_KERNEL_CALL(shared2x2float2<false>, dimGrid, dimBlock, 0, streams[1], 
 			     matrix_real_d, matrix_imag_d, NSTATION, writeMatrix);
     } else {
-      CUBE_ASYNC_KERNEL_CALL(shared2x2float2diag, dimGrid, dimBlock, 0, streams[1], 
+      if (dimGrid.x) CUBE_ASYNC_KERNEL_CALL(shared2x2float2<true>, dimGrid, dimBlock, 0, streams[1], 
+					    matrix_real_d, matrix_imag_d, NSTATION, writeMatrix);
+      CUBE_ASYNC_KERNEL_CALL(shared2x2float2diag, dimGridDiag, dimBlock, 0, streams[1], 
 			     matrix_real_d, matrix_imag_d, NSTATION, writeMatrix);
     }
     cudaEventRecord(kernelCompletion[(p+1)%2], streams[1]); // record the completion of the kernel
@@ -621,10 +625,12 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
 #endif
   cudaStreamWaitEvent(streams[1], copyCompletion[(PIPE_LENGTH+1)%2], 0);
   if (!use_diagonal) {
-    CUBE_ASYNC_KERNEL_CALL(shared2x2float2, dimGrid, dimBlock, 0, streams[1], 
+    CUBE_ASYNC_KERNEL_CALL(shared2x2float2<false>, dimGrid, dimBlock, 0, streams[1], 
 			   matrix_real_d, matrix_imag_d, NSTATION, writeMatrix);
   } else {
-    CUBE_ASYNC_KERNEL_CALL(shared2x2float2diag, dimGrid, dimBlock, 0, streams[1], matrix_real_d, matrix_imag_d,
+    if (dimGrid.x) CUBE_ASYNC_KERNEL_CALL(shared2x2float2<true>, dimGrid, dimBlock, 0, streams[1], matrix_real_d, matrix_imag_d,
+					  NSTATION, writeMatrix);
+    CUBE_ASYNC_KERNEL_CALL(shared2x2float2diag, dimGridDiag, dimBlock, 0, streams[1], matrix_real_d, matrix_imag_d,
 			   NSTATION, writeMatrix);
   }
 

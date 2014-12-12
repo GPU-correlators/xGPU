@@ -1,12 +1,23 @@
 //determine row and column from blockIdx.x
+template<bool offdiag>
 CUBE_DEVICE(static void, findPosition, unsigned int &Col, unsigned int &Row, unsigned int &blockX, unsigned int &blockY) {
   unsigned int k = blockIdx.x;
+
+  if (!offdiag) { // update all of lower triangular
 #if NSTATION >= 512
-  blockY = -0.5 + sqrt(0.25 + 2*k);
+    blockY = -0.5 + sqrt(0.25 + 2*k);
 #else
-  blockY = -0.5f + sqrtf(0.25f + 2*k);
+    blockY = -0.5f + sqrtf(0.25f + 2*k);
 #endif  
-  blockX = k - (((blockY+1)*(blockY)) >> 1);
+    blockX = k - (((blockY+1)*(blockY)) >> 1);
+  } else { // only update strictly lower block triangular
+#if NSTATION >= 512
+    blockY = 0.5 + sqrt(0.25 + 2*k);
+#else
+    blockY = 0.5f + sqrtf(0.25f + 2*k);
+#endif  
+    blockX = k - (((blockY-1)*(blockY)) >> 1);
+  }
   Row = (blockY*TILE_HEIGHT + threadIdx.y);
   Col = (blockX*TILE_WIDTH + threadIdx.x);
 }
@@ -122,6 +133,7 @@ CUBE_DEVICE(static void, write2x2, unsigned int &Col, unsigned int &Row, float4 
 #error SHARED_ATOMIC_SIZE must be 4 or 8
 #endif
 
+template<bool offdiag>
 CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, const int Nstation, const int write)
 {
   CUBE_START;
@@ -142,7 +154,7 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
   unsigned int f = blockIdx.y;
 
   unsigned int Row, Col, blockX, blockY;
-  CUBE_DEVICE_CALL(findPosition, Col, Row, blockX, blockY);
+  CUBE_DEVICE_CALL(findPosition<offdiag>, Col, Row, blockX, blockY);
 
   //declare shared memory for input coalescing
 

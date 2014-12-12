@@ -47,15 +47,14 @@ if( tx == ty ) {
 #define DIAG
 
 //determine row and column from blockIdx.x
+
+// finding the block is now a 1-d map
+// block X = block Y = blockIdx.x;
+
 CUBE_DEVICE(static void, findPosition, unsigned int &Col, unsigned int &Row, unsigned int &blockX, unsigned int &blockY,
             int tx, int ty) {
-  unsigned int k = blockIdx.x;
-#if NSTATION >= 512
-  blockY = -0.5 + sqrt(0.25 + 2*k);
-#else
-  blockY = -0.5f + sqrtf(0.25f + 2*k);
-#endif  
-  blockX = k - (((blockY+1)*(blockY)) >> 1);
+  blockX = blockIdx.x;
+  blockY = blockIdx.x;
   Row = (blockY*TILE_HEIGHT + ty);
   Col = (blockX*TILE_WIDTH + tx);
 }
