@@ -71,6 +71,9 @@ typedef struct XGPUInternalContextStruct {
   // Whether xgpuSetHostOutputBuffer has been called
   bool matrix_h_set;
   bool register_host_matrix;
+
+  // Which kernel strategy are we using
+  int kernel_strategy;
 } XGPUInternalContext;
 
 #define TILE_HEIGHT 8
@@ -176,7 +179,7 @@ void xgpuInfo(XGPUInfo *pcxs)
 // was allocated).
 //
 // TODO Cleanup as needed if returning due to error
-int xgpuInit(XGPUContext *context, int device_flags)
+int xgpuInit(XGPUContext *context, int device_flags, int kernel_strategy)
 {
   int error = XGPU_OK;
 
@@ -200,6 +203,8 @@ int xgpuInit(XGPUContext *context, int device_flags)
   if( device_flags & XGPU_DONT_REGISTER_MATRIX ) {
 	  internal->register_host_matrix = false;
   }
+
+  internal->kernel_strategy = kernel_strategy;
 
   long long unsigned int vecLengthPipe = compiletime_info.vecLengthPipe;
   long long unsigned int matLength = compiletime_info.matLength;
@@ -550,11 +555,9 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
   ComplexInput *array_load;
   ComplexInput *array_compute; 
 
-  const bool use_diagonal = false;
-
   dim3 dimBlock, dimGrid, dimGridDiag;
   dimBlock = dim3(TILE_WIDTH,TILE_HEIGHT,1);
-  if (!use_diagonal) {
+  if (internal->kernel_strategy == 0) {
     // allocated exactly as many thread blocks as are needed
     dimGrid = dim3(((Nblock/2+1)*(Nblock/2))/2, compiletime_info.nfrequency);
   } else { // launch parameters for diagonal kernel
@@ -594,7 +597,7 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
     cudaBindTexture(0, tex1dfloat2, array_compute, channelDesc, NFREQUENCY*NSTATION*NPOL*NTIME_PIPE*sizeof(ComplexInput));
 #endif
     cudaStreamWaitEvent(streams[1], copyCompletion[(p+1)%2], 0); // only start the kernel once the h2d transfer is complete
-    if (!use_diagonal) {
+    if (internal->kernel_strategy == 0) {
       CUBE_ASYNC_KERNEL_CALL(shared2x2float2<false>, dimGrid, dimBlock, 0, streams[1], 
 			     matrix_real_d, matrix_imag_d, NSTATION, writeMatrix);
     } else {
@@ -624,7 +627,7 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
     cudaBindTexture(0, tex1dfloat2, array_compute, channelDesc, NFREQUENCY*NSTATION*NPOL*NTIME_PIPE*sizeof(ComplexInput));
 #endif
   cudaStreamWaitEvent(streams[1], copyCompletion[(PIPE_LENGTH+1)%2], 0);
-  if (!use_diagonal) {
+  if (internal->kernel_strategy == 0) {
     CUBE_ASYNC_KERNEL_CALL(shared2x2float2<false>, dimGrid, dimBlock, 0, streams[1], 
 			   matrix_real_d, matrix_imag_d, NSTATION, writeMatrix);
   } else {

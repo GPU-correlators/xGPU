@@ -156,7 +156,7 @@ void xgpuInfo(XGPUInfo *pcxs);
 //
 // Note that if registering is disabled, the corresponding xgpuSetHost*Buffer
 // function _must_ be called prior to calling xgpuCudaXengine.
-int xgpuInit(XGPUContext *context, int device_flags);
+  int xgpuInit(XGPUContext *context, int device_flags, int kernel_strategy);
 
 // Clear the device integration buffer
 //

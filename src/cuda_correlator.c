@@ -41,6 +41,7 @@ int main(int argc, char** argv) {
   int i;
   int device = 0;
   unsigned int seed = 1;
+  int kernel_strategy = 0;
   int count = 1;
   int syncOp = SYNCOP_DUMP;
   int finalSyncOp = SYNCOP_DUMP;
@@ -56,7 +57,7 @@ int main(int argc, char** argv) {
   struct timespec tic, toc;
 #endif
 
-  while ((opt = getopt(argc, argv, "c:d:f:ho:rs:v:")) != -1) {
+  while ((opt = getopt(argc, argv, "c:d:f:ho:rs:v:k:")) != -1) {
     switch (opt) {
       case 'c':
         // Set number of time to call xgpuCudaXengine
@@ -90,6 +91,10 @@ int main(int argc, char** argv) {
         // Set verbosity level
         verbose = strtoul(optarg, NULL, 0);
         break;
+      case 'k':
+	// Set the kernel strategy
+	kernel_strategy = strtoul(optarg, NULL, 0);
+	break;
       default: /* '?' */
         fprintf(stderr,
             "Usage: %s [options]\n"
@@ -97,6 +102,10 @@ int main(int argc, char** argv) {
             "  -c COUNT          How many times to call xgpuCudaXengine [1]\n"
             "  -d DEVNUM         GPU device to use [0]\n"
             "  -f FINAL_SYNCOP   Sync operation for final call [1]\n"
+	    "  -k KERNEL         Which kernel strategy to use\n"
+            "                    Kernel strategy values are\n"
+            "                         0 (regular) \n"
+            "                         1 (diagonal and off-diagonal) \n"
             "  -o SYNCOP         Sync operation for all but final call [1]\n"
             "                    Sync operation values are:\n"
             "                         0 (no sync)\n"
@@ -123,6 +132,7 @@ int main(int argc, char** argv) {
 
   printf("Correlating %u stations with %u channels and integration length %u\n",
 	 xgpu_info.nstation, xgpu_info.nfrequency, xgpu_info.ntime);
+  printf("Using kernel strategy %d\n", kernel_strategy);
 #ifndef FIXED_POINT
   printf("Sending floating point data to GPU.\n");
 #else
@@ -142,7 +152,7 @@ int main(int argc, char** argv) {
     context.array_h = NULL;
     context.matrix_h = NULL;
   }
-  xgpu_error = xgpuInit(&context, device);
+  xgpu_error = xgpuInit(&context, device, kernel_strategy);
   if(xgpu_error) {
     fprintf(stderr, "xgpuInit returned error code %d\n", xgpu_error);
     goto cleanup;
