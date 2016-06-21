@@ -29,6 +29,13 @@ int main(int argc, char** argv)
     default: printf("<unknown type code: %d>\n", xgpu_info.input_type);
   }
 
+  printf("Type of computation: ");
+  switch(xgpu_info.compute_type) {
+    case XGPU_INT8:    printf("8 bit multiply, 32-bit accumulate\n"); break;
+    case XGPU_FLOAT32: printf("FP32 multiply, FP32 accumulate\n"); break;
+    default: printf("<unknown type code: %d>\n", xgpu_info.compute_type);
+  }
+
   printf("Number of ComplexInput elements in GPU input vector: %llu\n",
       xgpu_info.vecLength);
 

@@ -77,10 +77,13 @@ void xgpuReorderMatrix(Complex *matrix) {
 		size_t reg_index = (l*NPOL+pol1)*NPOL+pol2;
 		//tmp[tri_index] = 
 		//  Complex(((float*)matrix)[reg_index], ((float*)matrix)[reg_index+matLength]);
-		tmp[tri_index].real = 
-		  ((float*)matrix)[reg_index];
-		tmp[tri_index].imag = 
-		  ((float*)matrix)[reg_index+matLength];
+#ifndef DP4A
+		tmp[tri_index].real = ((float*)matrix)[reg_index];
+		tmp[tri_index].imag = ((float*)matrix)[reg_index+matLength];
+#else
+		tmp[tri_index].real = ((int*)matrix)[reg_index];
+		tmp[tri_index].imag = ((int*)matrix)[reg_index+matLength];
+#endif
 	      }
 	    }
 	  }
@@ -107,8 +110,13 @@ void xgpuReorderMatrix(Complex *matrix) {
         for (pol1=0; pol1<NPOL; pol1++) {
 	  for (pol2=0; pol2<NPOL; pol2++) {
 	    size_t index = (k*NPOL+pol1)*NPOL+pol2;
+#ifndef DP4A
 	    tmp[index].real = ((float*)matrix)[index];
 	    tmp[index].imag = ((float*)matrix)[index+matLength];
+#else
+	    tmp[index].real = ((int*)matrix)[index];
+	    tmp[index].imag = ((int*)matrix)[index+matLength];
+#endif
 	  }
 	}
       }
@@ -153,7 +161,7 @@ void xgpuCheckResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *arra
 	    int k = f*(NSTATION+1)*(NSTATION/2) + i*(i+1)/2 + j;
 	    int index = (k*NPOL+pol1)*NPOL+pol2;
 
-#ifdef FIXED_POINT
+#if defined(FIXED_POINT) && !defined(DP4A)
 	    gpu[index].real = round(gpu[index].real);
 	    gpu[index].imag = round(gpu[index].imag);
 #endif
@@ -171,8 +179,13 @@ void xgpuCheckResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *arra
 	    }
 	    if(error > TOL) {
               if(verbose > 0) {
+#ifndef DP4A
                 printf("%d %d %d %d %d %d %d %g  %g  %g  %g (%g %g)\n", f, i, j, k, pol1, pol2, index,
                        cpu[index].real, gpu[index].real, cpu[index].imag, gpu[index].imag, zabs(cpu[index]), zabs(gpu[index]));
+#else
+                printf("%3d %3d %3d %4d %1d %1d %5d %12d  %12d  %12d  %12d (%g %g)\n", f, i, j, k, pol1, pol2, index,
+                       cpu[index].real, gpu[index].real, cpu[index].imag, gpu[index].imag, zabs(cpu[index]), zabs(gpu[index]));
+#endif
                 if(verbose > 1 && array_h) {
                   Complex sum;
                   sum.real = 0;
@@ -195,7 +208,11 @@ void xgpuCheckResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *arra
                         (float)in1.real, (float)in1.imag,
                         (float)prod.real, (float)prod.imag);
                   }
+#ifndef DP4A
                   printf("                                 (%6g, %6g)\n", sum.real, sum.imag);
+#else
+                  printf("                                 (%6d, %6d)\n", sum.real, sum.imag);
+#endif
                 }
               }
 	      errorCount++;
@@ -210,6 +227,29 @@ void xgpuCheckResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *arra
     printf("Outer product summation failed with %d deviations (max error %g)\n\n", errorCount, maxError);
   } else {
     printf("Outer product summation successful (max error %g)\n\n", maxError);
+  }
+
+}
+
+// reorder the input array - separate real/imag and corner turn in time, depth 4
+void xgpuSwizzleInput(ComplexInput *out, const ComplexInput *in) {
+  printf("Swizzling input\n");
+
+  char *o = (char*)out;
+  const char *i = (char*)in;
+  int t, f, s, p, c;
+
+  for (t=0; t<NTIME_PIPE; t++) {
+    for (f=0; f<NFREQUENCY; f++) {
+      for(s=0; s<NSTATION; s++) {
+	for (p=0; p<NPOL; p++) {
+	  for (c=0; c<2; c++) {
+	    o[((((c*(NTIME_PIPE/4)+t/4)*NFREQUENCY+f)*NSTATION+s)*NPOL+p)*4+t%4] =
+	      i[( ( (t*NFREQUENCY+f)*NSTATION+s )*NPOL+p )*2 + c];
+	  }
+	}
+      }
+    }
   }
 
 }
