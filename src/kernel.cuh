@@ -442,34 +442,34 @@ CUBE_KERNEL(static shared2x2, int4 *matrix_real, int4 *matrix_imag, const int Ns
   //declare shared memory for input coalescing
 
 #if SHARED_ATOMIC_SIZE == 4
-  __shared__ char4 input[BUFFER_DEPTH][16*TILE_WIDTH]; // 16 = complex * pol * 2x2 tile size
-  char4 *input0_p = input[0] + tid;
-  char4 *input1_p = input[1] + tid;
+  __shared__ int input[BUFFER_DEPTH][16*TILE_WIDTH]; // 16 = complex * pol * 2x2 tile size
+  int *input0_p = input[0] + tid;
+  int *input1_p = input[1] + tid;
 #if BUFFER_DEPTH == 4
-  char4 *input2_p = input[2] + tid;
-  char4 *input3_p = input[3] + tid;
+  int *input2_p = input[2] + tid;
+  int *input3_p = input[3] + tid;
 #endif // BUFFER_DEPTH==4
 #else
 #error SHARED_ATOMIC_SIZE == 8 not supported for dp4a 
 #endif
 
   //instantiate sum variables
-  int sum11XXreal = 0, sum11XXimag = 0;
-  int sum11XYreal = 0, sum11XYimag = 0;
-  int sum11YXreal = 0, sum11YXimag = 0;
-  int sum11YYreal = 0, sum11YYimag = 0;
-  int sum12XXreal = 0, sum12XXimag = 0;
-  int sum12XYreal = 0, sum12XYimag = 0;
-  int sum12YXreal = 0, sum12YXimag = 0;
-  int sum12YYreal = 0, sum12YYimag = 0;
-  int sum21XXreal = 0, sum21XXimag = 0;
-  int sum21XYreal = 0, sum21XYimag = 0;
-  int sum21YXreal = 0, sum21YXimag = 0;
-  int sum21YYreal = 0, sum21YYimag = 0;
-  int sum22XXreal = 0, sum22XXimag = 0;
-  int sum22XYreal = 0, sum22XYimag = 0;
-  int sum22YXreal = 0, sum22YXimag = 0;
-  int sum22YYreal = 0, sum22YYimag = 0;
+  int sum11XXreal = 0, sum11XXimag1 = 0, sum11XXimag2 = 0;
+  int sum11XYreal = 0, sum11XYimag1 = 0, sum11XYimag2 = 0;
+  int sum11YXreal = 0, sum11YXimag1 = 0, sum11YXimag2 = 0;
+  int sum11YYreal = 0, sum11YYimag1 = 0, sum11YYimag2 = 0;
+  int sum12XXreal = 0, sum12XXimag1 = 0, sum12XXimag2 = 0;
+  int sum12XYreal = 0, sum12XYimag1 = 0, sum12XYimag2 = 0;
+  int sum12YXreal = 0, sum12YXimag1 = 0, sum12YXimag2 = 0;
+  int sum12YYreal = 0, sum12YYimag1 = 0, sum12YYimag2 = 0;
+  int sum21XXreal = 0, sum21XXimag1 = 0, sum21XXimag2 = 0;
+  int sum21XYreal = 0, sum21XYimag1 = 0, sum21XYimag2 = 0;
+  int sum21YXreal = 0, sum21YXimag1 = 0, sum21YXimag2 = 0;
+  int sum21YYreal = 0, sum21YYimag1 = 0, sum21YYimag2 = 0;
+  int sum22XXreal = 0, sum22XXimag1 = 0, sum22XXimag2 = 0;
+  int sum22XYreal = 0, sum22XYimag1 = 0, sum22XYimag2 = 0;
+  int sum22YXreal = 0, sum22YXimag1 = 0, sum22YXimag2 = 0;
+  int sum22YYreal = 0, sum22YYimag1 = 0, sum22YYimag2 = 0;
 
 #if SHARED_ATOMIC_SIZE == 8
 #if COMPLEX_BLOCK_SIZE != 1
@@ -564,14 +564,14 @@ CUBE_KERNEL(static shared2x2, int4 *matrix_real, int4 *matrix_imag, const int Ns
   if (write) {
 #endif
     CUBE_DEVICE_CALL(write2x2, Col, Row, matrix_real, matrix_imag,
-		     sum11XXreal, sum11XXimag, sum11XYreal, sum11XYimag, 
-		     sum11YXreal, sum11YXimag, sum11YYreal, sum11YYimag, 
-		     sum12XXreal, sum12XXimag, sum12XYreal, sum12XYimag, 
-		     sum12YXreal, sum12YXimag, sum12YYreal, sum12YYimag, 
-		     sum21XXreal, sum21XXimag, sum21XYreal, sum21XYimag, 
-		     sum21YXreal, sum21YXimag, sum21YYreal, sum21YYimag, 
-		     sum22XXreal, sum22XXimag, sum22XYreal, sum22XYimag, 
-		     sum22YXreal, sum22YXimag, sum22YYreal, sum22YYimag);
+		     sum11XXreal, sum11XXimag1-sum11XXimag2, sum11XYreal, sum11XYimag1-sum11XYimag2,
+		     sum11YXreal, sum11YXimag1-sum11YXimag2, sum11YYreal, sum11YYimag1-sum11YYimag2,
+		     sum12XXreal, sum12XXimag1-sum12XXimag2, sum12XYreal, sum12XYimag1-sum12XYimag2,
+		     sum12YXreal, sum12YXimag1-sum12YXimag2, sum12YYreal, sum12YYimag1-sum12YYimag2,
+		     sum21XXreal, sum21XXimag1-sum21XXimag2, sum21XYreal, sum21XYimag1-sum21XYimag2,
+		     sum21YXreal, sum21YXimag1-sum21YXimag2, sum21YYreal, sum21YYimag1-sum21YYimag2,
+		     sum22XXreal, sum22XXimag1-sum22XXimag2, sum22XYreal, sum22XYimag1-sum22XYimag2,
+		     sum22YXreal, sum22YXimag1-sum22YXimag2, sum22YYreal, sum22YYimag1-sum22YYimag2);
 
     CUBE_ADD_BYTES(Col < Row ? 256 : 192); // need load and save
 #ifdef WRITE_OPTION
