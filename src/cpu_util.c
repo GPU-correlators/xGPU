@@ -235,8 +235,8 @@ void xgpuCheckResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *arra
 void xgpuSwizzleInput(ComplexInput *out, const ComplexInput *in) {
   printf("Swizzling input\n");
 
-  char *o = (char*)out;
-  const char *i = (char*)in;
+  signed char *o = (signed char*)out;
+  const signed char *i = (signed char*)in;
   int t, f, s, p, c;
 
   for (t=0; t<NTIME_PIPE; t++) {

@@ -20,7 +20,7 @@ extern "C" {
 #ifndef FIXED_POINT
 typedef float ReImInput;
 #else
-typedef char ReImInput;
+typedef signed char ReImInput;
 #endif // FIXED_POINT
 
 typedef struct ComplexInputStruct {
