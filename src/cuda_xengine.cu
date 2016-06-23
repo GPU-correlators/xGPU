@@ -77,8 +77,8 @@ static texture<float2, 2, cudaReadModeElementType> tex2dfloat2;
 #else
 #ifdef DP4A
 // texture declaration for swizzled 8-bit fixed point reads
-static texture<int, 1, cudaReadModeElementType> tex1dchar4;
-static texture<int, 2, cudaReadModeElementType> tex2dchar4;
+static texture<int2, 1, cudaReadModeElementType> tex1dchar4;
+static texture<int2, 2, cudaReadModeElementType> tex2dchar4;
 #else
 // texture declaration for 8-bit fixed point reads
 static texture<char2, 1, cudaReadModeNormalizedFloat> tex1dfloat2;
@@ -273,7 +273,7 @@ int xgpuInit(XGPUContext *context, int device_flags)
   internal->channelDesc = cudaCreateChannelDesc<float2>();
 #else
 #ifdef DP4A
-  internal->channelDesc = cudaCreateChannelDesc<int>();
+  internal->channelDesc = cudaCreateChannelDesc<int2>();
 #else
   internal->channelDesc = cudaCreateChannelDesc<char2>();
 #endif // DP4A
@@ -301,7 +301,7 @@ int xgpuInit(XGPUContext *context, int device_flags)
 #if TEXTURE_DIM == 2
 #ifdef DP4A
   if((NFREQUENCY * NSTATION * NPOL > deviceProp.maxTexture2DLinear[0]) ||
-     (NTIME_PIPE/2 > deviceProp.maxTexture2DLinear[1])) {
+     (NTIME_PIPE/4 > deviceProp.maxTexture2DLinear[1])) {
     return XGPU_INSUFFICIENT_TEXTURE_MEMORY;
   }
 #else
@@ -317,7 +317,7 @@ int xgpuInit(XGPUContext *context, int device_flags)
   // bytes of 1D texture without any problems.  Perhaps the value of
   // maxTexture1D returned by cudaGetDeviceProperties is wrong?
 #ifdef DP4A
-  if (NFREQUENCY * NSTATION * NPOL * NTIME_PIPE/2 > deviceProp.maxTexture1DLinear) {
+  if (NFREQUENCY * NSTATION * NPOL * (NTIME_PIPE/4) > deviceProp.maxTexture1DLinear) {
     return XGPU_INSUFFICIENT_TEXTURE_MEMORY;
   }
 #else
@@ -606,14 +606,14 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
     cudaBindTexture2D(0, tex2dfloat2, array_compute, channelDesc, NFREQUENCY*NSTATION*NPOL, NTIME_PIPE,
 		      NFREQUENCY*NSTATION*NPOL*sizeof(ComplexInput));
 #else
-    cudaBindTexture2D(0, tex2dchar4, array_compute, channelDesc, NFREQUENCY*NSTATION*NPOL, 2*(NTIME_PIPE/4),
-		      NFREQUENCY*NSTATION*NPOL*sizeof(char4));
+    cudaBindTexture2D(0, tex2dchar4, array_compute, channelDesc, NFREQUENCY*NSTATION*NPOL, NTIME_PIPE/4,
+		      NFREQUENCY*NSTATION*NPOL*2*sizeof(char4));
 #endif
 #else
 #ifndef DP4A
     cudaBindTexture(0, tex1dfloat2, array_compute, channelDesc, NFREQUENCY*NSTATION*NPOL*NTIME_PIPE*sizeof(ComplexInput));
 #else
-    cudaBindTexture(0, tex1dchar4, array_compute, channelDesc, NFREQUENCY*NSTATION*NPOL*2*NTIME_PIPE*sizeof(char4)/4);
+    cudaBindTexture(0, tex1dchar4, array_compute, channelDesc, NFREQUENCY*NSTATION*NPOL*(NTIME_PIPE/4)*sizeof(int2));
 #endif
 #endif
     cudaStreamWaitEvent(streams[1], copyCompletion[(p+1)%2], 0); // only start the kernel once the h2d transfer is complete
@@ -638,14 +638,14 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
     cudaBindTexture2D(0, tex2dfloat2, array_compute, channelDesc, NFREQUENCY*NSTATION*NPOL, NTIME_PIPE,
 		      NFREQUENCY*NSTATION*NPOL*sizeof(ComplexInput));
 #else
-    cudaBindTexture2D(0, tex2dchar4, array_compute, channelDesc, NFREQUENCY*NSTATION*NPOL, 2*(NTIME_PIPE/4),
-		      NFREQUENCY*NSTATION*NPOL*sizeof(char4));
+    cudaBindTexture2D(0, tex2dchar4, array_compute, channelDesc, NFREQUENCY*NSTATION*NPOL, NTIME_PIPE/4,
+		      NFREQUENCY*NSTATION*NPOL*2*sizeof(char4));
 #endif
 #else
 #ifndef DP4A
     cudaBindTexture(0, tex1dfloat2, array_compute, channelDesc, NFREQUENCY*NSTATION*NPOL*NTIME_PIPE*sizeof(ComplexInput));
 #else
-    cudaBindTexture(0, tex1dchar4, array_compute, channelDesc, NFREQUENCY*NSTATION*NPOL*2*NTIME_PIPE*sizeof(char4)/4);
+    cudaBindTexture(0, tex1dchar4, array_compute, channelDesc, NFREQUENCY*NSTATION*NPOL*(NTIME_PIPE/4)*sizeof(int2));
 #endif
 #endif
   cudaStreamWaitEvent(streams[1], copyCompletion[(PIPE_LENGTH+1)%2], 0);

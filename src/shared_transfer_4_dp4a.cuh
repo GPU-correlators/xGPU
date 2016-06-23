@@ -8,11 +8,10 @@
 
 // Read char4 from global, write int to shared memory avoid bank conflict.
 #define LOAD(s, t)							\
-  { int real = tex1Dfetch(tex1dchar4, array_index + (t)*NFREQUENCY*NSTATION*NPOL); \
-    int imag = tex1Dfetch(tex1dchar4, array_index + (NTIME_PIPE/4 + t)*NFREQUENCY*NSTATION*NPOL); \
+  { int2 c = tex1Dfetch(tex1dchar4, array_index + (t)*NFREQUENCY*NSTATION*NPOL); \
     CUBE_ADD_BYTES(4*sizeof(ComplexInput));				\
-    *(input##s##_p) = real;						\
-    *(input##s##_p + 4*TILE_WIDTH) = imag;}
+    *(input##s##_p) = c.x;						\
+    *(input##s##_p + 4*TILE_WIDTH) = c.y;}
 
 #else
 
@@ -22,25 +21,22 @@
 // Read float2 from global, write individual floats
 // to shared memory avoid bank conflict.
 #define LOAD(s, t)							\
-  {  int4 real, imag;							\
+  {  int4 c;								\
     asm("tex.2d.v4.s32.s32 {%0, %1, %2, %3}, [tex2dchar4, {%4, %5}];" :	\
-	"=r"(real.x), "=r"(real.y), "=r"(real.z), "=r"(real.w) : "r"(array_index), "r"(t)); \
-    asm("tex.2d.v4.s32.s32 {%0, %1, %2, %3}, [tex2dchar4, {%4, %5}];" :	\
-	"=r"(imag.x), "=r"(imag.y), "=r"(imag.z), "=r"(imag.w) : "r"(array_index), "r"(t + NTIME_PIPE/4)); \
+	"=r"(c.x), "=r"(c.y), "=r"(c.z), "=r"(c.w) : "r"(array_index), "r"(t)); \
     CUBE_ADD_BYTES(4*sizeof(ComplexInput));				\
-    *(input##s##_p) = real.x;						\
-    *(input##s##_p + 4*TILE_WIDTH) = imag.x;}
+    *(input##s##_p) = c.x;						\
+    *(input##s##_p + 4*TILE_WIDTH) = c.y;}
 
 #else
 
 // Read char4 from global, write individual floats
 // to shared memory avoid bank conflict.
 #define LOAD(s, t)							\
-  { int real = tex2D(tex2dchar4, array_index, t);			\
-    int imag = tex2D(tex2dchar4, array_index, t + NTIME_PIPE/4);	\
+  { int2 c = tex2D(tex2dchar4, array_index, t);				\
     CUBE_ADD_BYTES(4*sizeof(ComplexInput));				\
-    *(input##s##_p) = *((int*)&real);					\
-    *(input##s##_p + 4*TILE_WIDTH) = *((int*)&imag);}
+    *(input##s##_p) = c.x;						\
+    *(input##s##_p + 4*TILE_WIDTH) = c.y;}
 #endif  // use float texture coordinates
 
 #endif

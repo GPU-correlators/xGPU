@@ -244,7 +244,7 @@ void xgpuSwizzleInput(ComplexInput *out, const ComplexInput *in) {
       for(s=0; s<NSTATION; s++) {
 	for (p=0; p<NPOL; p++) {
 	  for (c=0; c<2; c++) {
-	    o[((((c*(NTIME_PIPE/4)+t/4)*NFREQUENCY+f)*NSTATION+s)*NPOL+p)*4+t%4] =
+	    o[((((t/4*NFREQUENCY+f)*NSTATION+s)*NPOL+p)*2+c)*4+t%4] =
 	      i[( ( (t*NFREQUENCY+f)*NSTATION+s )*NPOL+p )*2 + c];
 	  }
 	}
