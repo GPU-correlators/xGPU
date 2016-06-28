@@ -3,7 +3,12 @@
 -include Makefile.local
 
 CUDA_DIR ?= /usr/local/cuda
+ifneq ($(strip $(OSTYPE)),osx)
 CUDA_LIBDIR ?= $(CUDA_DIR)/lib64
+else
+CUDA_LIBDIR ?= $(CUDA_DIR)/lib
+endif
+
 DEBUG ?= -O3
 TEXTURE_DIM ?= 1
 CUDA_ARCH ?= sm_20
@@ -22,8 +27,21 @@ LFLAGS = -L"c:\Program Files\Microsoft SDKs\Windows\v7.1\Lib" -L.
 RPATH =
 LIBXGPU = libxgpu.dll
 else
-NVCCFLAGS = -Xcompiler -fopenmp -Xcompiler -D_REENTRANT -Xcompiler -Wall
-LFLAGS = -L$(CUDA_LIBDIR) -L.
+
+NVCCFLAGS = -Xcompiler -D_REENTRANT -Xcompiler -Wall -Xcompiler -Wno-unused-function -ftz=true
+
+ifneq ($(strip $(OSTYPE)),osx)
+NVCCFLAGS += -Xcompiler -fopenmp
+else
+NVCCFLAGS += -Xcompiler -Wno-unknown-pragmas -Xcompiler -Wno-gnu-designator
+endif
+
+ifneq ($(strip $(OSTYPE)),osx)
+LFLAGS = -L$(CUDA_LIBDIR) -L. -lrt
+else
+LFLAGS = -L$(CUDA_LIBDIR) -L. -lcudart
+endif
+
 RPATH = -Xlinker -rpath,'$${ORIGIN}:$${ORIGIN}/../lib'
 LIBXGPU = libxgpu.so
 endif
@@ -32,6 +50,14 @@ NVCCFLAGS += $(DEBUG) -arch=$(CUDA_ARCH) -Xptxas -abi=no --ptxas-options=-v -pre
 NVCCFLAGS += -DTEXTURE_DIM=$(TEXTURE_DIM)
 
 ifeq ($(strip $(CUDA_ARCH)),sm_35)
+NVCCFLAGS += -maxrregcount=72
+endif
+
+ifeq ($(strip $(CUDA_ARCH)),sm_50)
+NVCCFLAGS += -maxrregcount=72
+endif
+
+ifeq ($(strip $(CUDA_ARCH)),sm_52)
 NVCCFLAGS += -maxrregcount=72
 endif
 

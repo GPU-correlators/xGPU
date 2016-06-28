@@ -114,7 +114,11 @@ static __device__ __constant__ unsigned char tIndex[PIPE_LENGTH*NFREQUENCY];
 //determine row and column from blockIdx.x
 CUBE_DEVICE(static void, findPosition, unsigned int &Col, unsigned int &Row, unsigned int &blockX, unsigned int &blockY) {
   unsigned int k = blockIdx.x;
+#if NSTATION >= 512
+  blockY = -0.5 + sqrt(0.25 + 2*k);
+#else
   blockY = -0.5f + sqrtf(0.25f + 2*k);
+#endif  
   blockX = k - (((blockY+1)*(blockY)) >> 1);
   Row = (blockY*TILE_HEIGHT + threadIdx.y);
   Col = (blockX*TILE_WIDTH + threadIdx.x);
@@ -220,6 +224,8 @@ CUBE_DEVICE(static void, write2x2, unsigned int &Col, unsigned int &Row, float4 
 #error COMPLEX_BLOCK_SIZE must be 1 or 32
 #endif
 
+//#define STRUCT_OF_ARRAY
+
 // Use the appropriate shared memory load / store routines according to the atomic size
 #if SHARED_ATOMIC_SIZE == 4
 #include "shared_transfer_4.cuh"
@@ -263,12 +269,26 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
 #endif // BUFFER_DEPTH==4
 #else
   __shared__ float2 input[BUFFER_DEPTH][8*TILE_WIDTH]; // 2* for float4/float2, 4* for 2x2 tile size
+
+#ifdef STRUCT_OF_ARRAY
+  unsigned swizzled_tid = ((tid & 0x1c) >> 1) | ((tid & 2)    << 3) | (tid & 0x21);
+  float2 *input0_p = input[0] + swizzled_tid;
+  float2 *input1_p = input[1] + swizzled_tid;
+#if BUFFER_DEPTH == 4
+  float2 *input2_p = input[2] + swizzled_tid;
+  float2 *input3_p = input[3] + swizzled_tid;
+#endif // BUFFER_DEPTH==4
+
+#else
+
   float2 *input0_p = input[0] + tid;
   float2 *input1_p = input[1] + tid;
 #if BUFFER_DEPTH == 4
   float2 *input2_p = input[2] + tid;
   float2 *input3_p = input[3] + tid;
 #endif // BUFFER_DEPTH==4
+#endif // STRUCT_OF_ARRAY
+
 #endif
 
   //instantiate sum variables
@@ -405,29 +425,29 @@ CUBE_KERNEL(static shared2x2float2, float4 *matrix_real, float4 *matrix_imag, co
 #undef TWO_BY_TWO_COMPUTE
 
 static XGPUInfo compiletime_info = {
-  npol:          NPOL,
-  nstation:      NSTATION,
-  nbaseline:     NBASELINE,
-  nfrequency:    NFREQUENCY,
-  ntime:         NTIME,
-  ntimepipe:     NTIME_PIPE,
+  .npol =        NPOL,
+  .nstation =    NSTATION,
+  .nbaseline =   NBASELINE,
+  .nfrequency =  NFREQUENCY,
+  .ntime =       NTIME,
+  .ntimepipe =   NTIME_PIPE,
 #ifdef FIXED_POINT
-  input_type:    XGPU_INT8,
+  .input_type =  XGPU_INT8,
 #else
-  input_type:    XGPU_FLOAT32,
+  .input_type =  XGPU_FLOAT32,
 #endif
-  vecLength:     NFREQUENCY * NTIME * NSTATION * NPOL,
-  vecLengthPipe: NFREQUENCY * NTIME_PIPE * NSTATION * NPOL,
+  .vecLength  =  NFREQUENCY * NTIME * NSTATION * NPOL,
+  .vecLengthPipe = NFREQUENCY * NTIME_PIPE * NSTATION * NPOL,
 #if (MATRIX_ORDER == REGISTER_TILE_TRIANGULAR_ORDER)
-  matLength:     NFREQUENCY * ((NSTATION/2+1)*(NSTATION/4)*NPOL*NPOL*4) * (NPULSAR + 1),
+  .matLength =   NFREQUENCY * ((NSTATION/2+1)*(NSTATION/4)*NPOL*NPOL*4) * (NPULSAR + 1),
 #else
   // Matrix length is same for REAL_IMAG_TRIANGULAR_ORDER and TRIANGULAR_ORDER
-  matLength:     NFREQUENCY * ((NSTATION+1)*(NSTATION/2)*NPOL*NPOL) * (NPULSAR + 1),
+  .matLength =   NFREQUENCY * ((NSTATION+1)*(NSTATION/2)*NPOL*NPOL) * (NPULSAR + 1),
 #endif
-  triLength:     NFREQUENCY * ((NSTATION+1)*(NSTATION/2)*NPOL*NPOL) * (NPULSAR + 1),
-  matrix_order:  MATRIX_ORDER,
-  shared_atomic_size : SHARED_ATOMIC_SIZE,
-  complex_block_size: COMPLEX_BLOCK_SIZE
+  .triLength =   NFREQUENCY * ((NSTATION+1)*(NSTATION/2)*NPOL*NPOL) * (NPULSAR + 1),
+  .matrix_order = MATRIX_ORDER,
+  .shared_atomic_size = SHARED_ATOMIC_SIZE,
+  .complex_block_size = COMPLEX_BLOCK_SIZE
 };
 
 // This stringification trick is from "info cpp"
@@ -492,6 +512,22 @@ int xgpuInit(XGPUContext *context, int device_flags)
 
   long long unsigned int vecLengthPipe = compiletime_info.vecLengthPipe;
   long long unsigned int matLength = compiletime_info.matLength;
+
+  int deviceCount;
+  cudaGetDeviceCount(&deviceCount);
+  if (deviceCount == 0) {
+    printf("No CUDA devices found");
+    exit(-1);
+  }
+
+  cudaDeviceProp deviceProp;
+  for(int i=0; i<deviceCount; i++) {
+    cudaGetDeviceProperties(&deviceProp, i);
+    printf("Found device %d: %s\n", i, deviceProp.name);
+  }
+
+  cudaGetDeviceProperties(&deviceProp, internal->device);
+  printf("Using device %d: %s\n", internal->device, deviceProp.name);
 
   //assign the device
   cudaSetDevice(internal->device);
@@ -562,9 +598,6 @@ int xgpuInit(XGPUContext *context, int device_flags)
 #endif
 
   // check whether texture dimensions are ok
-  cudaDeviceProp deviceProp;
-  cudaGetDeviceProperties(&deviceProp, internal->device);
-
 #if TEXTURE_DIM == 2
   if((NFREQUENCY * NSTATION * NPOL > deviceProp.maxTexture2D[0]) ||
      (NTIME_PIPE > deviceProp.maxTexture2D[1])) {

@@ -13,7 +13,10 @@
 */
 
 #include <math.h>
+
+#ifdef _OPENMP
 #include <omp.h>
+#endif
 
 #include "xgpu.h"
 #include "xgpu_info.h"
@@ -31,7 +34,10 @@ do {                                                                            
 #endif
 
 void xgpuOmpXengine(Complex *matrix_h, ComplexInput *array_h) {
+#ifdef _OPENMP
   int num_procs = omp_get_num_procs();
+#endif
+
   #pragma omp parallel num_threads(num_procs)
   {
     int i, t;
