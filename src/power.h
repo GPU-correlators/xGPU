@@ -1,4 +1,5 @@
 #include <time.h>
+#include <sys/time.h>
 #include <unistd.h>
 #include <nvml.h>
 #include <pthread.h>
@@ -30,11 +31,15 @@ void* GPUmonitor(void *) {
     unsigned int temp;
     NVML_CHECK(nvmlDeviceGetTemperature(GPUmon_device_id, NVML_TEMPERATURE_GPU, &temp));
 
+    // get GPU clock
+    unsigned int graphics_clock;
+    NVML_CHECK(nvmlDeviceGetClockInfo(GPUmon_device_id, NVML_CLOCK_GRAPHICS, &graphics_clock));
+
     // get time stamp
     clock_t time = clock();
 
-    fprintf(GPUmon_out, "clock = %ld time =%e Power = %g watts, temperature = %d\n",
-	   time, (double)time/CLOCKS_PER_SEC, 1e-3*(float)power, temp);
+    fprintf(GPUmon_out, "clock = %ld time = %e Power = %g watts, temperature = %u graphics clock = %u\n",
+	    time, (double)time/CLOCKS_PER_SEC, 1e-3*(float)power, temp, graphics_clock);
 
     usleep(10000); // sleep for 10 milliseconds
   }
@@ -54,8 +59,13 @@ void GPUmonitorInit(int device_ordinal) {
   NVML_CHECK(nvmlDeviceGetName(GPUmon_device_id, name, NVML_DEVICE_NAME_BUFFER_SIZE));
   printf("Initializing GPU monitoring on device %d: %s\n", device_ordinal, name);
 
+  // get time stamp for filename
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  long int time = 1000*tv.tv_sec + tv.tv_usec;
+
   char filename[1024];
-  sprintf(filename, "gpu_monitor_%ld.out", clock());
+  sprintf(filename, "gpu_monitor_%ld.out", time);
 
   GPUmon_out = fopen(filename, "w");
   fprintf(GPUmon_out, "%s\n", name);
