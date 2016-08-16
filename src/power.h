@@ -35,11 +35,19 @@ void* GPUmonitor(void *) {
     unsigned int graphics_clock;
     NVML_CHECK(nvmlDeviceGetClockInfo(GPUmon_device_id, NVML_CLOCK_GRAPHICS, &graphics_clock));
 
+    // get SM clock
+    unsigned int sm_clock;
+    NVML_CHECK(nvmlDeviceGetClockInfo(GPUmon_device_id, NVML_CLOCK_SM, &sm_clock));
+
+    // get memory clock
+    unsigned int memory_clock;
+    NVML_CHECK(nvmlDeviceGetClockInfo(GPUmon_device_id, NVML_CLOCK_MEM, &memory_clock));
+
     // get time stamp
     clock_t time = clock();
 
-    fprintf(GPUmon_out, "clock = %ld time = %e Power = %g watts, temperature = %u graphics clock = %u\n",
-	    time, (double)time/CLOCKS_PER_SEC, 1e-3*(float)power, temp, graphics_clock);
+    fprintf(GPUmon_out, "clock = %ld time = %e Power = %g watts, temperature = %u, clocks: graphics = %u sm = %u memory = %u\n",
+	    time, (double)time/CLOCKS_PER_SEC, 1e-3*(float)power, temp, graphics_clock, sm_clock, memory_clock);
 
     usleep(10000); // sleep for 10 milliseconds
   }
