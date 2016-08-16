@@ -13,11 +13,13 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <nvml.h>
 
 #include "xgpu.h"
 #include "xgpu_info.h"
 #include "xgpu_version.h"
 #include "cube/cube.h"
+#include "power.h"
 
 // whether we are writing the matrix back to device memory (used for benchmarking)
 static int writeMatrix = 1;
@@ -327,6 +329,8 @@ int xgpuInit(XGPUContext *context, int device_flags)
 #endif
 #endif 
 
+  GPUmonitorInit(internal->device);
+
   return XGPU_OK;
 }
 
@@ -536,6 +540,8 @@ void xgpuFree(XGPUContext *context)
     free(internal);
     context->internal = NULL;
   }
+
+  GPUmonitorFree();
 
   CUBE_WRITE();
 }
