@@ -329,7 +329,9 @@ int xgpuInit(XGPUContext *context, int device_flags)
 #endif
 #endif 
 
+#if !defined(CUBE_COUNT_MODE) && !defined(CUBE_ASYNC_COUNT_MODE) && !defined(CUBE_ASYNC_TIME_MODE)
   GPUmonitorInit(internal->device);
+#endif
 
   return XGPU_OK;
 }
@@ -541,7 +543,9 @@ void xgpuFree(XGPUContext *context)
     context->internal = NULL;
   }
 
+#if !defined(CUBE_COUNT_MODE) && !defined(CUBE_ASYNC_COUNT_MODE) && !defined(CUBE_ASYNC_TIME_MODE)
   GPUmonitorFree();
+#endif
 
   CUBE_WRITE();
 }
