@@ -208,7 +208,7 @@ int main(int argc, char** argv) {
   printf("Elapsed time %.6f ms total, %.6f ms/call average, theoretical max BW %.3f MHz\n",
       total, per_call, max_bw);
 
-#ifndef BENCHMARK
+#if !defined(POWER_LOOP) && !defined(BENCHMARK)
   Complex *cuda_matrix_h = context.matrix_h;
   if(count > 1) {
     for(i=0; i<context.matrix_len; i++) {

@@ -611,11 +611,11 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
   cudaEventRecord(copyCompletion[0], streams[0]); // record the completion of the h2d transfer
   checkCudaError();
 
+#ifdef POWER_LOOP
+  for (int q=0; ; q++) {
+#endif
   XGPU_ASYNC_START(loop);
 
-#ifdef POWER_LOOP
-  for (int q=0; ; q++)
-#endif
   for (int p=1; p<PIPE_LENGTH; p++) {
     array_compute = array_d[(p+1)%2];
     array_load = array_d[p%2];
@@ -651,6 +651,12 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
   }
 
   XGPU_ASYNC_END(loop);
+
+#ifdef POWER_LOOP
+  double gflops_loop = 1e-9 * 8 * NFREQUENCY * (NTIME - NTIME_PIPE) * (NPOL*NSTATION-1) * NPOL*NSTATION / 2;
+  printf("Loop time: %f; loop GFLOPS: %f\n", runTime_loop, gflops_loop / (1e-3*runTime_loop));
+  }
+#endif
 
   array_compute = array_d[(PIPE_LENGTH+1)%2];
   // Final kernel calculation
