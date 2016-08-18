@@ -15,7 +15,11 @@ void xgpuRandomComplex(ComplexInput* random_num, long long unsigned int length) 
   double u1,u2,r,theta,a,b;
   double stddev=2.5;
 
+#if defined(BENCHMARK) || defined(POWER_LOOP)
   int stride = NFREQUENCY*NTIME;
+#else
+  int stride = 1;
+#endif
   int mini_length = length/stride;
 
   for(i=0; i<mini_length; i++){
