@@ -51,7 +51,9 @@ inline int _ConvertSMVer2Cores(int major, int minor)
 #define NVML_CHECK(func)						\
   {									\
     nvmlReturn_t ret = func;						\
-    if (ret != NVML_SUCCESS) {						\
+    if (ret == NVML_ERROR_NOT_SUPPORTED) {				\
+      printf("%s not supported on this GPU\n", #func);			\
+    } else if (ret != NVML_SUCCESS) {					\
       printf("Error %s returns %s\n", #func, nvmlErrorString(ret));	\
       exit(-1);								\
     }									\
