@@ -654,7 +654,8 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
 
 #ifdef POWER_LOOP
   double gflops_loop = 1e-9 * 8 * NFREQUENCY * (NTIME - NTIME_PIPE) * (NPOL*NSTATION-1) * NPOL*NSTATION / 2;
-  printf("Loop time: %f; loop GFLOPS: %f\n", runTime_loop, gflops_loop / (1e-3*runTime_loop));
+  printf("Time: %f; Power = %f; Temp = %u; GFLOPS: %f; GFLOPS/watt %f \n",
+	 runTime_loop, 1e-3*GPUmon_power, GPUmon_temp, gflops_loop / (1e-3*runTime_loop), gflops_loop / (1e-3*runTime_loop*1e-3*GPUmon_power));
   }
 #endif
 

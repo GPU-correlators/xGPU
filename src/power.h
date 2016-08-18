@@ -22,35 +22,36 @@ int check = 0;
 
 FILE *GPUmon_out;
 
+unsigned int GPUmon_power;
+unsigned int GPUmon_temp;
+unsigned int GPUmon_graphics_clock;
+unsigned int GPUmon_sm_clock;
+unsigned int GPUmon_memory_clock;
+
 void* GPUmonitor(void *) {
 
   int loop = check;
   while (loop == 1) {
     // get power
-    unsigned int power;
-    NVML_CHECK(nvmlDeviceGetPowerUsage(GPUmon_device_id, &power));
+    NVML_CHECK(nvmlDeviceGetPowerUsage(GPUmon_device_id, &GPUmon_power));
 
     // get temperature
-    unsigned int temp;
-    NVML_CHECK(nvmlDeviceGetTemperature(GPUmon_device_id, NVML_TEMPERATURE_GPU, &temp));
+    NVML_CHECK(nvmlDeviceGetTemperature(GPUmon_device_id, NVML_TEMPERATURE_GPU, &GPUmon_temp));
 
     // get GPU clock
-    unsigned int graphics_clock;
-    NVML_CHECK(nvmlDeviceGetClockInfo(GPUmon_device_id, NVML_CLOCK_GRAPHICS, &graphics_clock));
+    NVML_CHECK(nvmlDeviceGetClockInfo(GPUmon_device_id, NVML_CLOCK_GRAPHICS, &GPUmon_graphics_clock));
 
     // get SM clock
-    unsigned int sm_clock;
-    NVML_CHECK(nvmlDeviceGetClockInfo(GPUmon_device_id, NVML_CLOCK_SM, &sm_clock));
+    NVML_CHECK(nvmlDeviceGetClockInfo(GPUmon_device_id, NVML_CLOCK_SM, &GPUmon_sm_clock));
 
     // get memory clock
-    unsigned int memory_clock;
-    NVML_CHECK(nvmlDeviceGetClockInfo(GPUmon_device_id, NVML_CLOCK_MEM, &memory_clock));
+    NVML_CHECK(nvmlDeviceGetClockInfo(GPUmon_device_id, NVML_CLOCK_MEM, &GPUmon_memory_clock));
 
     // get time stamp
     clock_t time = clock();
 
     fprintf(GPUmon_out, "clock = %ld time = %e Power = %g watts, temperature = %u, clocks: graphics = %u sm = %u memory = %u\n",
-	    time, (double)time/CLOCKS_PER_SEC, 1e-3*(float)power, temp, graphics_clock, sm_clock, memory_clock);
+	    time, (double)time/CLOCKS_PER_SEC, 1e-3*(float)GPUmon_power, GPUmon_temp, GPUmon_graphics_clock, GPUmon_sm_clock, GPUmon_memory_clock);
 
     usleep(10000); // sleep for 10 milliseconds
 
