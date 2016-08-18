@@ -17,12 +17,15 @@
 nvmlDevice_t GPUmon_device_id;
 
 pthread_t GPUmon_thread;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+int check = 0;
 
 FILE *GPUmon_out;
 
 void* GPUmonitor(void *) {
 
-  while (1) {
+  int loop = check;
+  while (loop == 1) {
     // get power
     unsigned int power;
     NVML_CHECK(nvmlDeviceGetPowerUsage(GPUmon_device_id, &power));
@@ -50,6 +53,10 @@ void* GPUmonitor(void *) {
 	    time, (double)time/CLOCKS_PER_SEC, 1e-3*(float)power, temp, graphics_clock, sm_clock, memory_clock);
 
     usleep(10000); // sleep for 10 milliseconds
+
+    pthread_mutex_lock(&mutex);
+    loop = check;
+    pthread_mutex_unlock(&mutex);
   }
 
   return NULL;
@@ -57,10 +64,6 @@ void* GPUmonitor(void *) {
 
 void GPUmonitorInit(int device_ordinal) {
   NVML_CHECK(nvmlInit());
-
-  //unsigned int device_count;
-  //NVML_CHECK(nvmlDeviceGetCount(&device_count));
-  //printf("NVML: device count = %d\n", device_count);
 
   NVML_CHECK(nvmlDeviceGetHandleByIndex(device_ordinal, &GPUmon_device_id));
   char name[NVML_DEVICE_NAME_BUFFER_SIZE];
@@ -82,6 +85,8 @@ void GPUmonitorInit(int device_ordinal) {
   fprintf(GPUmon_out, "NTIME = %d\n", NTIME);
   fprintf(GPUmon_out, "NTIME_PIPE = %d\n", NTIME_PIPE);
 
+  check = 1;
+
   // spawn monitoring thread
   if (pthread_create(&GPUmon_thread, NULL, GPUmonitor, 0)) {
     printf("Failed to spawn thread in %s", __func__);
@@ -91,11 +96,20 @@ void GPUmonitorInit(int device_ordinal) {
 
 void GPUmonitorFree() {
 
+  cudaDeviceSynchronize();
+
+  sleep(1); // sleep for one second before ending
+
+  // safely end the monitoring thread
+  pthread_mutex_lock(&mutex);
+  check = 0;
+  pthread_mutex_unlock(&mutex);
+
   // rejoin monitoring thread
-  if (pthread_cancel(GPUmon_thread)) {
-    printf("Failed to kill  thread in %s", __func__);
-    exit(-1);
-  }
+  //if (pthread_cancel(GPUmon_thread)) {
+  //printf("Failed to kill  thread in %s", __func__);
+  //exit(-1);
+  //}
 
   fclose(GPUmon_out);
 
