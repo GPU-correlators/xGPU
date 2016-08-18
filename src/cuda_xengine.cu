@@ -172,6 +172,8 @@ void xgpuInfo(XGPUInfo *pcxs)
   pcxs->complex_block_size = compiletime_info.complex_block_size;
 }
 
+static int cuda_cores;
+
 // Initialize the XGPU.  The device number is intentionally not part of the
 // context because the device number needs to be maintained as part of the
 // internal context (.e.g to ensure consistency with the device on which memory
@@ -218,7 +220,8 @@ int xgpuInit(XGPUContext *context, int device_flags)
   }
 
   cudaGetDeviceProperties(&deviceProp, internal->device);
-  printf("Using device %d: %s\n", internal->device, deviceProp.name);
+  cuda_cores = _ConvertSMVer2Cores(deviceProp.major, deviceProp.minor) * deviceProp.multiProcessorCount;
+  printf("Using device %d: %s with %d CUDA cores\n", internal->device, deviceProp.name, cuda_cores);
 
   //assign the device
   cudaSetDevice(internal->device);
@@ -597,6 +600,7 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
   //allocated exactly as many thread blocks as are needed
   dim3 dimGrid(((Nblock/2+1)*(Nblock/2))/2, compiletime_info.nfrequency);
 
+
   float runTime_entire, runTime_loop;
   XGPU_ASYNC_START(entire);
 
@@ -654,8 +658,16 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
 
 #ifdef POWER_LOOP
   double gflops_loop = 1e-9 * 8 * NFREQUENCY * (NTIME - NTIME_PIPE) * (NPOL*NSTATION-1) * NPOL*NSTATION / 2;
-  printf("Time: %f; Power = %f; Temp = %u; GFLOPS: %f; GFLOPS/watt %f \n",
-	 runTime_loop, 1e-3*GPUmon_power, GPUmon_temp, gflops_loop / (1e-3*runTime_loop), gflops_loop / (1e-3*runTime_loop*1e-3*GPUmon_power));
+#ifdef DP4A
+  double peak = 4 * 2 * cuda_cores * 1e-3 * GPUmon_sm_clock; // GOPS
+#else
+  double peak = 2 * cuda_cores * 1e-3 * GPUmon_sm_clock; // GFLOPS
+#endif
+
+  printf("Time = %f; Power = %f; Temp = %u; GFLOPS =  %f; GFLOPS/watt = %f; Peak = %f; Percent of peak = %f \n",
+	 runTime_loop, 1e-3*GPUmon_power, GPUmon_temp, gflops_loop / (1e-3*runTime_loop),
+	 gflops_loop / (1e-3*runTime_loop*1e-3*GPUmon_power),
+	 peak, gflops_loop / (1e-3*runTime_loop*peak));
   }
 #endif
 
