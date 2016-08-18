@@ -24,7 +24,6 @@ int clock_gettime(int clk_id, struct timespec *t){
 #include <time.h>
 #endif
 
-#include "cube/cube.h"
 #include "xgpu.h"
 
 /*
@@ -154,8 +153,6 @@ int main(int argc, char** argv) {
   ComplexInput *array_h = malloc(context.array_len*sizeof(ComplexInput));
 #endif
 
-  Complex *cuda_matrix_h = context.matrix_h;
-
   // create an array of complex noise
   xgpuRandomComplex(array_h, xgpu_info.vecLength);
 
@@ -171,7 +168,7 @@ int main(int argc, char** argv) {
     goto cleanup;
   }
 
-#if (CUBE_MODE == CUBE_DEFAULT && !defined(POWER_LOOP) )
+#if !defined(POWER_LOOP) && !defined(BENCHMARK)
   // Only call CPU X engine if dumping GPU X engine
   printf("Calling CPU X-Engine\n");
   xgpuOmpXengine(omp_matrix_h, array_h);
@@ -211,8 +208,8 @@ int main(int argc, char** argv) {
   printf("Elapsed time %.6f ms total, %.6f ms/call average, theoretical max BW %.3f MHz\n",
       total, per_call, max_bw);
 
-#if (CUBE_MODE == CUBE_DEFAULT)
-  
+#ifndef BENCHMARK
+  Complex *cuda_matrix_h = context.matrix_h;
   if(count > 1) {
     for(i=0; i<context.matrix_len; i++) {
       cuda_matrix_h[i].real /= count;

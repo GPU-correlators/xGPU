@@ -18,7 +18,6 @@
 #include "xgpu.h"
 #include "xgpu_info.h"
 #include "xgpu_version.h"
-#include "cube/cube.h"
 #include "power.h"
 
 // whether we are writing the matrix back to device memory (used for benchmarking)
@@ -129,7 +128,7 @@ static XGPUInfo compiletime_info = {
 #else
   .compute_type = XGPU_FLOAT32,
 #endif
-  .vecLength  =  NFREQUENCY * NTIME * NSTATION * NPOL,
+  .vecLength  =  NFREQUENCY * NTIME * (long)NSTATION * NPOL,
   .vecLengthPipe = NFREQUENCY * NTIME_PIPE * NSTATION * NPOL,
 #if (MATRIX_ORDER == REGISTER_TILE_TRIANGULAR_ORDER)
   .matLength =   NFREQUENCY * ((NSTATION/2+1)*(NSTATION/4)*NPOL*NPOL*4) * (NPULSAR + 1),
@@ -182,8 +181,6 @@ void xgpuInfo(XGPUInfo *pcxs)
 int xgpuInit(XGPUContext *context, int device_flags)
 {
   int error = XGPU_OK;
-
-  CUBE_INIT();
 
   // Allocate internal context
   XGPUInternalContext *internal = (XGPUInternalContext *)malloc(sizeof(XGPUInternalContext));
@@ -329,9 +326,7 @@ int xgpuInit(XGPUContext *context, int device_flags)
 #endif
 #endif 
 
-#if !defined(CUBE_COUNT_MODE) && !defined(CUBE_ASYNC_COUNT_MODE) && !defined(CUBE_ASYNC_TIME_MODE)
   GPUmonitorInit(internal->device);
-#endif
 
   return XGPU_OK;
 }
@@ -543,12 +538,26 @@ void xgpuFree(XGPUContext *context)
     context->internal = NULL;
   }
 
-#if !defined(CUBE_COUNT_MODE) && !defined(CUBE_ASYNC_COUNT_MODE) && !defined(CUBE_ASYNC_TIME_MODE)
   GPUmonitorFree();
-#endif
 
-  CUBE_WRITE();
 }
+
+#define XGPU_ASYNC_START(label)			\
+  {						\
+    cudaEvent_t start##label, end##label;	\
+    cudaEventCreate(&start##label);		\
+    cudaEventCreate(&end##label);		\
+    cudaEventSynchronize(start##label);		\
+    cudaEventRecord(start##label, 0);		\
+
+#define XGPU_ASYNC_END(label)						\
+    cudaEventRecord(end##label, 0);					\
+    cudaEventSynchronize(end##label);					\
+    cudaEventElapsedTime(&runTime_##label, start##label, end##label);	\
+    cudaEventDestroy(start##label);					\
+    cudaEventDestroy(end##label);					\
+  }
+
 
 int xgpuCudaXengine(XGPUContext *context, int syncOp)
 {
@@ -588,7 +597,8 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
   //allocated exactly as many thread blocks as are needed
   dim3 dimGrid(((Nblock/2+1)*(Nblock/2))/2, compiletime_info.nfrequency);
 
-  CUBE_ASYNC_START(ENTIRE_PIPELINE);
+  float runTime_entire, runTime_loop;
+  XGPU_ASYNC_START(entire);
 
   // Need to fill pipeline before loop
   long long unsigned int vecLengthPipe = compiletime_info.vecLengthPipe;
@@ -597,11 +607,11 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
   // buffer 0.  This is a no-op unless previous call to xgpuCudaXengine() had
   // SYNCOP_NONE or SYNCOP_SYNC_TRANSFER.
   cudaStreamWaitEvent(streams[0], kernelCompletion[0], 0);
-  CUBE_ASYNC_COPY_CALL(array_d[0], array_hp, vecLengthPipe*sizeof(ComplexInput), cudaMemcpyHostToDevice, streams[0]);
+  cudaMemcpyAsync(array_d[0], array_hp, vecLengthPipe*sizeof(ComplexInput), cudaMemcpyHostToDevice, streams[0]);
   cudaEventRecord(copyCompletion[0], streams[0]); // record the completion of the h2d transfer
   checkCudaError();
 
-  CUBE_ASYNC_START(PIPELINE_LOOP);
+  XGPU_ASYNC_START(loop);
 
 #ifdef POWER_LOOP
   for (int q=0; ; q++)
@@ -627,19 +637,20 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
 #endif
 #endif
     cudaStreamWaitEvent(streams[1], copyCompletion[(p+1)%2], 0); // only start the kernel once the h2d transfer is complete
-    CUBE_ASYNC_KERNEL_CALL(shared2x2, dimGrid, dimBlock, 0, streams[1], 
-			   matrix_real_d, matrix_imag_d, NSTATION, writeMatrix);
+
+    shared2x2 <<< dimGrid, dimBlock, 0, streams[1] >>>(matrix_real_d, matrix_imag_d, NSTATION, writeMatrix);
+
     cudaEventRecord(kernelCompletion[(p+1)%2], streams[1]); // record the completion of the kernel
     checkCudaError();
 
     // Download next chunk of input data
     cudaStreamWaitEvent(streams[0], kernelCompletion[p%2], 0); // only start the transfer once the kernel has completed
-    CUBE_ASYNC_COPY_CALL(array_load, array_hp+p*vecLengthPipe, vecLengthPipe*sizeof(ComplexInput), cudaMemcpyHostToDevice, streams[0]);
+    cudaMemcpyAsync(array_load, array_hp+p*vecLengthPipe, vecLengthPipe*sizeof(ComplexInput), cudaMemcpyHostToDevice, streams[0]);
     cudaEventRecord(copyCompletion[p%2], streams[0]); // record the completion of the h2d transfer
     checkCudaError();
   }
 
-  CUBE_ASYNC_END(PIPELINE_LOOP);
+  XGPU_ASYNC_END(loop);
 
   array_compute = array_d[(PIPE_LENGTH+1)%2];
   // Final kernel calculation
@@ -659,13 +670,13 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
 #endif
 #endif
   cudaStreamWaitEvent(streams[1], copyCompletion[(PIPE_LENGTH+1)%2], 0);
-  CUBE_ASYNC_KERNEL_CALL(shared2x2, dimGrid, dimBlock, 0, streams[1], matrix_real_d, matrix_imag_d,
-			 NSTATION, writeMatrix);
+
+  shared2x2 <<<dimGrid, dimBlock, 0, streams[1]>>> (matrix_real_d, matrix_imag_d, NSTATION, writeMatrix);
 
   if(syncOp == SYNCOP_DUMP) {
     checkCudaError();
     //copy the data back, employing a similar strategy as above
-    CUBE_COPY_CALL(context->matrix_h + context->output_offset, internal->matrix_d, compiletime_info.matLength*sizeof(Complex), cudaMemcpyDeviceToHost);
+    cudaMemcpyAsync(context->matrix_h + context->output_offset, internal->matrix_d, compiletime_info.matLength*sizeof(Complex), cudaMemcpyDeviceToHost);
     checkCudaError();
   } else if(syncOp == SYNCOP_SYNC_COMPUTE) {
     // Synchronize on the compute stream (i.e. wait for it to complete)
@@ -681,7 +692,13 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
       }
   }
 
-  CUBE_ASYNC_END(ENTIRE_PIPELINE);
+  XGPU_ASYNC_END(entire);
+
+  double gflops_entire = 1e-9 * 8 * NFREQUENCY * NTIME * (NPOL*NSTATION-1) * NPOL*NSTATION / 2;
+  double gflops_loop = 1e-9 * 8 * NFREQUENCY * (NTIME - NTIME_PIPE) * (NPOL*NSTATION-1) * NPOL*NSTATION / 2;
+
+  printf("Time: entire pipeline = %f, loop = %f; GFLOPS: entire pipeline = %f, loop = %f\n",
+	 runTime_entire, runTime_loop, gflops_entire / (1e-3*runTime_entire), gflops_loop / (1e-3*runTime_loop));
 
   return XGPU_OK;
 }

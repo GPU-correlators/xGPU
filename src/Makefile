@@ -110,25 +110,9 @@ endif
 # Benchmarking variable handlers
 ################################
 
-ifdef CUBE_COUNT_MODE
-NVCCFLAGS += -DCUBE_COUNT_MODE
-CUBE_OBJS = cube/cube.o
-endif
-
-ifdef CUBE_TIME_MODE
-# FIXME? The test seems to fail on the timing run - why is this? - summation is doubled for some reason
-NVCCFLAGS += -DCUBE_TIME_MODE
-CUBE_OBJS = cube/cube.o
-endif
-
-ifdef CUBE_ASYNC_COUNT_MODE
-NVCCFLAGS += -DCUBE_ASYNC_COUNT_MODE
-CUBE_OBJS = cube/cube.o
-endif
-
-ifdef CUBE_ASYNC_TIME_MODE
-NVCCFLAGS += -DCUBE_ASYNC_TIME_MODE
-CUBE_OBJS = cube/cube.o
+# this sets benchmarking mode - no correctness testing done
+ifeq ($(strip $(BENCHMARK)), yes)
+NVCCFLAGS += -DBENCHMARK
 endif
 
 # this sets the pipeline to run in an infinite loop - for power measurement
@@ -156,7 +140,6 @@ BINXGPU_OBJS = $(CUDA_CORRELATOR_OBJS) $(XGPUINFO_OBJS)
 LIBXGPU_OBJS  = cuda_xengine.o
 LIBXGPU_OBJS += omp_xengine.o
 LIBXGPU_OBJS += cpu_util.o
-LIBXGPU_OBJS += $(CUBE_OBJS)
 
 # Each object file has a corresponding dependency file
 DEPS = $(BINXGPU_OBJS:.o=.d) $(LIBXGPU_OBJS:.o=.d)
@@ -228,8 +211,9 @@ show:
 
 clean:
 	rm -f cuda_correlator libxgpu.so xgpuinfo
-	rm -f $(BINXGPU_OBJS) $(LIBXGPU_OBJS) cube/cube.o
+	rm -f $(BINXGPU_OBJS) $(LIBXGPU_OBJS)
 	rm -f $(DEPS)
 	rm -f tags
+	rm -f gpu_monitor*out
 
 .PHONY : all objs tags clean install uninstall show
