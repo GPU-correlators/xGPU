@@ -40,7 +40,7 @@ void xgpuOmpXengine(Complex *matrix_h, ComplexInput *array_h) {
 
   #pragma omp parallel num_threads(num_procs)
   {
-    int i, t;
+    long i, t;
     #pragma omp for schedule(dynamic)
     for(i=0; i<NFREQUENCY*NBASELINE; i++){
       int f = i/NBASELINE;

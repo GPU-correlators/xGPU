@@ -11,10 +11,14 @@
 // the fixed point case, the values are then converted to ints, scaled by 16
 // (i.e. -112 to +112), and finally stored as signed chars.
 void xgpuRandomComplex(ComplexInput* random_num, long long unsigned int length) {
-  int i;
+  int i, j;
   double u1,u2,r,theta,a,b;
   double stddev=2.5;
-  for(i=0; i<length; i++){
+
+  int stride = NFREQUENCY*NTIME;
+  int mini_length = length/stride;
+
+  for(i=0; i<mini_length; i++){
     u1 = (rand() / (double)(RAND_MAX));
     u2 = (rand() / (double)(RAND_MAX));
     if(u1==0.0) u1=0.5/RAND_MAX;
@@ -51,6 +55,10 @@ void xgpuRandomComplex(ComplexInput* random_num, long long unsigned int length) 
     // Interestingly, it does not give exactly zeros on the output.
     //random_num[i] = ComplexInput(0,0);
 #endif
+  }
+
+  for (j=1; j<stride; j++) {
+    memcpy(random_num+j*mini_length, random_num, sizeof(ComplexInput) * mini_length);
   }
 }
 
@@ -151,7 +159,8 @@ void xgpuCheckResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *arra
   int errorCount=0;
   double error = 0.0;
   double maxError = 0.0;
-  int i, j, pol1, pol2, f, t;
+  int i, j, pol1, pol2;
+  long f, t;
 
   for(i=0; i<NSTATION; i++){
     for (j=0; j<=i; j++) {
@@ -180,10 +189,10 @@ void xgpuCheckResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *arra
 	    if(error > TOL) {
               if(verbose > 0) {
 #ifndef DP4A
-                printf("%d %d %d %d %d %d %d %g  %g  %g  %g (%g %g)\n", f, i, j, k, pol1, pol2, index,
+                printf("%ld %d %d %d %d %d %d %g  %g  %g  %g (%g %g)\n", f, i, j, k, pol1, pol2, index,
                        cpu[index].real, gpu[index].real, cpu[index].imag, gpu[index].imag, zabs(cpu[index]), zabs(gpu[index]));
 #else
-                printf("%3d %3d %3d %4d %1d %1d %5d %12d  %12d  %12d  %12d (%g %g)\n", f, i, j, k, pol1, pol2, index,
+                printf("%3ld %3d %3d %4d %1d %1d %5d %12d  %12d  %12d  %12d (%g %g)\n", f, i, j, k, pol1, pol2, index,
                        cpu[index].real, gpu[index].real, cpu[index].imag, gpu[index].imag, zabs(cpu[index]), zabs(gpu[index]));
 #endif
                 if(verbose > 1 && array_h) {
@@ -200,7 +209,7 @@ void xgpuCheckResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *arra
 
                     sum.real += prod.real;
                     sum.imag += prod.imag;
-                    printf(" %4d (%4g,%4g) (%4g,%4g) -> (%6g, %6g)\n", t,
+                    printf(" %4ld (%4g,%4g) (%4g,%4g) -> (%6g, %6g)\n", t,
                         //(float)real(in0), (float)imag(in0),
                         //(float)real(in1), (float)imag(in1),
                         //(float)real(prod), (float)imag(prod));
