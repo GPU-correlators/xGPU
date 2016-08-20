@@ -656,20 +656,62 @@ int xgpuCudaXengine(XGPUContext *context, int syncOp)
 
   XGPU_ASYNC_END(loop);
 
+  {
 #ifdef POWER_LOOP
-  double gflops_loop = 1e-9 * 8 * NFREQUENCY * (NTIME - NTIME_PIPE) * (NPOL*NSTATION-1) * NPOL*NSTATION / 2;
+    double gflops_loop = 1e-9 * 8 * NFREQUENCY * (NTIME - NTIME_PIPE) * (NPOL*NSTATION-1) * NPOL*NSTATION / 2;
 #ifdef DP4A
-  double peak = 4 * 2 * cuda_cores * 1e-3 * GPUmon_sm_clock; // GOPS
+    double peak = 4 * 2 * cuda_cores * 1e-3 * GPUmon_sm_clock; // GOPS
 #else
-  double peak = 2 * cuda_cores * 1e-3 * GPUmon_sm_clock; // GFLOPS
+    double peak = 2 * cuda_cores * 1e-3 * GPUmon_sm_clock; // GFLOPS
 #endif
 
-  printf("Time = %f; Power = %f; Temp = %u; GFLOPS =  %f; GFLOPS/watt = %f; Peak = %f; Percent of peak = %f \n",
-	 runTime_loop, 1e-3*GPUmon_power, GPUmon_temp, gflops_loop / (1e-3*runTime_loop),
-	 gflops_loop / (1e-3*runTime_loop*1e-3*GPUmon_power),
-	 peak, gflops_loop / (1e-3*runTime_loop*peak));
+    static long long count = 0;
+
+    count++;
+    const int offset = 20;
+    if (count > offset) {
+      count -= offset;
+
+      double time = 1e-3 * runTime_loop;
+
+      double power = 1e-3 * GPUmon_power;
+      static double power_sum = 0, power2_sum = 0;
+      power_sum += power;
+      power2_sum += power*power;
+
+      double gflops = gflops_loop / time;
+      static double gflops_sum = 0, gflops2_sum = 0;
+      gflops_sum += gflops;
+      gflops2_sum += gflops*gflops;
+
+      double temp = GPUmon_temp;
+      static double temp_sum = 0, temp2_sum = 0;
+      temp_sum += temp;
+      temp2_sum += temp*temp;
+
+      double eff = gflops / power;
+      static double eff_sum = 0, eff2_sum = 0;
+      eff_sum += eff;
+      eff2_sum += eff*eff;
+
+      double power_mean = power_sum / count;
+      double power_std = sqrt(power2_sum/(count-1) - power_sum*power_sum/(count * (count-1)));
+      double temp_mean = temp_sum / count;
+      double temp_std = sqrt(temp2_sum/(count-1) - temp_sum*temp_sum/(count * (count-1)));
+      double gflops_mean = gflops_sum / count;
+      double gflops_std = sqrt(gflops2_sum/(count-1) - gflops_sum*gflops_sum/(count * (count-1)));
+      double eff_mean = eff_sum / count;
+      double eff_std = sqrt(eff2_sum/(count-1) - eff_sum*eff_sum/(count * (count-1)));
+
+      printf("Time = %f; Power = %f (%f,%f); Temp = %f (%f,%f); GFLOPS =  %f (%f,%f); GFLOPS/watt = %f (%f,%f); Peak = %f; Percent of peak = %f \n",
+	     time, power, power_mean, power_std, temp, temp_mean, temp_std, gflops, gflops_mean, gflops_std,
+	     eff, eff_mean, eff_std, peak, gflops / peak);
+
+      count += offset;
+    }
   }
 #endif
+  }
 
   array_compute = array_d[(PIPE_LENGTH+1)%2];
   // Final kernel calculation
