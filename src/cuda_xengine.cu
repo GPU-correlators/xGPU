@@ -131,7 +131,7 @@ __device__ static void operator+=( float4 &a, const float4 b ) {
 }
 
 #ifdef FIXED_POINT
-#define make_float4_rnd(x, y, z, w) make_float4(round(x), round(y), round(z), round(w))
+#define make_float4_rnd(x, y, z, w) make_float4(rintf(x), rintf(y), rintf(z), rintf(w))
 #else
 #define make_float4_rnd(x, y, z, w) make_float4(x, y, z, w)
 #endif
