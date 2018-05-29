@@ -136,7 +136,7 @@ void xgpuReorderMatrix(Complex *matrix) {
 //check that GPU calculation matches the CPU
 //
 // verbose=0 means just print summary.
-// verbsoe=1 means print each differing basline/channel.
+// verbsoe=1 means print each differing baseline/channel.
 // verbose=2 and array_h!=0 means print each differing baseline and each input
 //           sample that contributed to it.
 #ifndef FIXED_POINT
@@ -165,7 +165,6 @@ void xgpuCheckResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *arra
 	    gpu[index].real = round(gpu[index].real);
 	    gpu[index].imag = round(gpu[index].imag);
 #endif
-
 	    if(zabs(cpu[index]) == 0) {
 	      error = zabs(gpu[index]);
 	    } else {

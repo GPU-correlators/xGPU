@@ -18,6 +18,8 @@ prefix ?= /usr/local
 bindir ?= $(prefix)/bin
 libdir ?= $(prefix)/lib
 includedir ?= $(prefix)/include
+datadir ?= $(prefix)/share
+aclocaldir ?= $(datadir)/aclocal
 
 ifeq ($(strip $(OSTYPE)),cygwin)
 NVCCFLAGS = --compiler-bindir "c:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin" -Xcompiler /openmp
@@ -29,7 +31,7 @@ else
 NVCCFLAGS = -Xcompiler -D_REENTRANT -Xcompiler -Wall -Xcompiler -Wno-unused-function -ftz=true
 
 ifneq ($(strip $(OSTYPE)),osx)
-NVCCFLAGS += -Xcompiler -fopenmp 
+NVCCFLAGS += -Xcompiler -fopenmp
 else
 NVCCFLAGS += -Xcompiler -Wno-unknown-pragmas -Xcompiler -Wno-gnu-designator
 endif
@@ -170,7 +172,7 @@ DEPS = $(BINXGPU_OBJS:.o=.d) $(LIBXGPU_OBJS:.o=.d)
 all: cuda_correlator xgpuinfo $(LIBXGPU)
 
 cuda_correlator: $(CUDA_CORRELATOR_OBJS) $(LIBXGPU)
-	$(NVCC) $(NVCCFLAGS) $(CUDA_CORRELATOR_OBJS) -o $@ $(LFLAGS) $(RPATH) -lxgpu
+	$(NVCC) $(NVCCFLAGS) $(CUDA_CORRELATOR_OBJS) -o $@ $(LFLAGS) $(RPATH) -lxgpu -lrt
 
 xgpuinfo: $(XGPUINFO_OBJS) $(LIBXGPU)
 	$(NVCC) $(NVCCFLAGS) $(XGPUINFO_OBJS) -o $@ $(LFLAGS) $(RPATH) -lxgpu
@@ -207,18 +209,23 @@ objs: $(BINXGPU_OBJS) $(LIBXGPU_OBJS)
 	rm -f $*.P
 	$(NVCC) $(NVCCFLAGS) $(CFLAGS) -c -o $@ $<
 
-install: xgpuinfo $(LIBXGPU)
+install: cuda_correlator xgpuinfo $(LIBXGPU)
 	mkdir -p $(bindir)
+	cp cuda_correlator $(bindir)
 	cp xgpuinfo $(bindir)
 	mkdir -p $(includedir)
 	cp xgpu.h $(includedir)
 	mkdir -p $(libdir)
 	cp $(LIBXGPU) $(libdir)
+	mkdir -p $(aclocaldir)
+	cp xgpu.m4 $(aclocaldir)
 
 uninstall:
+	rm -f $(bindir)/cuda_correlator
 	rm -f $(bindir)/xgpuinfo
 	rm -f $(includedir)/xgpu.h
 	rm -f $(libdir)/$(LIBXGPU)
+	rm -f $(aclocaldir)/xgpu.m4
 
 tags:
 	ctags -R .
