@@ -12,10 +12,6 @@ extern "C" {
 // point (i.e. floats).
 #define FIXED_POINT
 
-// If DP4A is defined, the library does all computation using native
-// 8-bit integer multiplication and 32-bit accumulation
-#define DP4A
-
 // set the data type accordingly
 #ifndef FIXED_POINT
 typedef float ReImInput;

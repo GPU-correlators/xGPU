@@ -11,7 +11,7 @@ endif
 
 DEBUG ?= -O3
 TEXTURE_DIM ?= 1
-CUDA_ARCH ?= sm_20
+CUDA_ARCH ?= sm_30
 
 NVCC = $(CUDA_DIR)/bin/nvcc
 prefix ?= /usr/local
@@ -44,7 +44,7 @@ RPATH = -Xlinker -rpath,'$${ORIGIN}:$${ORIGIN}/../lib'
 LIBXGPU = libxgpu.so
 endif
 
-NVCCFLAGS += $(DEBUG) -arch=$(CUDA_ARCH) -Xptxas -abi=no --ptxas-options=-v -prec-sqrt=false -Xcompiler -fPIC 
+NVCCFLAGS += $(DEBUG) -arch=$(CUDA_ARCH) --ptxas-options=-v -prec-sqrt=false -Xcompiler -fPIC
 NVCCFLAGS += -DTEXTURE_DIM=$(TEXTURE_DIM)
 
 ifeq ($(strip $(CUDA_ARCH)),sm_35)
@@ -134,6 +134,12 @@ endif
 # this sets the pipeline to run in an infinite loop - for power measurement
 ifeq ($(strip $(POWER_LOOP)), yes)
 NVCCFLAGS += -DPOWER_LOOP
+endif
+
+# If DP4A is defined, the library does all computation using native
+# 8-bit integer multiplication and 32-bit accumulation
+ifeq ($(strip $(DP4A)), yes)
+NVCCFLAGS += -DDP4A
 endif
 
 ifdef RUNTIME_STATS
