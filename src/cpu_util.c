@@ -178,11 +178,12 @@ void xgpuCheckResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *arra
 	    }
 	    if(error > TOL) {
               if(verbose > 0) {
+                if (errorCount==0) printf("freq  i   j    k px py  linear   cpu.real      gpu.real     xcpu.imag      gpu.imag abs(cpu) abs(gpu)\n");
 #ifndef DP4A
-                printf("%d %d %d %d %d %d %d %g  %g  %g  %g (%g %g)\n", f, i, j, k, pol1, pol2, index,
+                printf("%3d %3d %3d %4d %2d %2d %5d %12g  %12g  %12g  %12g (%g %g)\n", f, i, j, k, pol1, pol2, index,
                        cpu[index].real, gpu[index].real, cpu[index].imag, gpu[index].imag, zabs(cpu[index]), zabs(gpu[index]));
 #else
-                printf("%3d %3d %3d %4d %1d %1d %5d %12d  %12d  %12d  %12d (%g %g)\n", f, i, j, k, pol1, pol2, index,
+                printf("%3d %3d %3d %4d %2d %2d %5d %12d  %12d  %12d  %12d (%g %g)\n", f, i, j, k, pol1, pol2, index,
                        cpu[index].real, gpu[index].real, cpu[index].imag, gpu[index].imag, zabs(cpu[index]), zabs(gpu[index]));
 #endif
                 if(verbose > 1 && array_h) {
@@ -238,7 +239,7 @@ void xgpuSwizzleInput(ComplexInput *out, const ComplexInput *in) {
   const signed char *i = (signed char*)in;
   int t, f, s, p, c;
 
-  for (t=0; t<NTIME_PIPE; t++) {
+  for (t=0; t<NTIME; t++) {
     for (f=0; f<NFREQUENCY; f++) {
       for(s=0; s<NSTATION; s++) {
 	for (p=0; p<NPOL; p++) {
