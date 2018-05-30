@@ -1,5 +1,5 @@
-Release Notes for xGPU v0.0.1
------------------------------
+Release Notes for xGPU
+----------------------
 
 Overview:
 
@@ -163,8 +163,8 @@ Astronomy Cross-Correlation with Graphics Processing units",
 
 Authors:
 
-Michael Clark (NVIDIA)
+Kate Clark (NVIDIA)
 Paul La Plante (Loyola University Maryland)
 Lincoln Greenhill (Harvard-Smithsonian Center for Astrophysics)
 David MacMahon (University of California, Berkeley)
-Ben Barsdell (Harvard-Smithsonian Center for Astrophysics)
+Ben Barsdell (NVIDIA)
