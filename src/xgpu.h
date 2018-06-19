@@ -16,7 +16,7 @@ extern "C" {
 #ifndef FIXED_POINT
 typedef float ReImInput;
 #else
-typedef char ReImInput;
+typedef signed char ReImInput;
 #endif // FIXED_POINT
 
 typedef struct ComplexInputStruct {
@@ -24,10 +24,17 @@ typedef struct ComplexInputStruct {
   ReImInput imag;
 } ComplexInput;
 
+#ifndef DP4A
 typedef struct ComplexStruct {
   float real;
   float imag;
 } Complex;
+#else
+typedef struct ComplexStruct {
+  int real;
+  int imag;
+} Complex;
+#endif
 
 // Used to indicate the size and type of input data
 #define XGPU_INT8    (0)
@@ -66,6 +73,8 @@ typedef struct XGPUInfoStruct {
   unsigned int ntimepipe;
   // Type of input.  One of XGPU_INT8, XGPU_FLOAT32, XGPU_INT32.
   unsigned int input_type;
+  // Type of computation.  One of XGPU_INT8 or XGPU_FLOAT32
+  unsigned int compute_type;
   // Number of ComplexInput elements in input vector
   long long unsigned int vecLength;
   // Number of ComplexInput elements per transfer to GPU
@@ -216,6 +225,8 @@ void xgpuRandomComplex(ComplexInput* random_num, long long unsigned int length);
 void xgpuReorderMatrix(Complex *matrix);
 
 void xgpuCheckResult(Complex *gpu, Complex *cpu, int verbose, ComplexInput *array_h);
+
+void xgpuSwizzleInput(ComplexInput *out, const ComplexInput *in);
 
 void xgpuExtractMatrix(Complex *matrix, Complex *packed);
 

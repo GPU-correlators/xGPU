@@ -17,16 +17,22 @@
 #endif
 
 #ifndef NTIME
-#define NTIME 1000
+#define NTIME 1024
 #endif
 
 #ifndef NTIME_PIPE
-#define NTIME_PIPE 100
+#define NTIME_PIPE 128
 #endif
 
 // Ensure that NTIME_PIPE is a multiple of 4
+#ifndef DP4A
 #if (NTIME_PIPE/4)*4 != NTIME_PIPE
 #error NTIME_PIPE must be a multiple of 4
+#endif
+#else
+#if (NTIME_PIPE/16)*16 != NTIME_PIPE
+#error For DP4A: NTIME_PIPE must be a multiple of 16
+#endif
 #endif
 
 // Ensure that NTIME is a multiple of NTIME_PIPE

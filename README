@@ -1,5 +1,5 @@
-Release Notes for xGPU v0.0.1
------------------------------
+Release Notes for xGPU
+----------------------
 
 Overview:
 
@@ -7,24 +7,37 @@ xGPU is a library for performing the cross-multiplication step of the
 FX correlator algorithm, which is popular for radio astronomy signal
 processing.
 
+Precision:
+
+By default xGPU accepts signed 8-bit integer input, which is then
+converted to and computed in 32-bit floating point, with the final
+result output in 32-bit floating point.  However, on architectures
+that support the dp4a instruction (sm_61, sm_70 and sm_72 at the time
+of writing) a pure integer correlator is supported (8-bit integer
+multiply, 32-bit integer accumulation).  This can provide up to a 4x
+speedup versus using a floating point correlator.  Note, that if dp4a is
+requested on an unsupported architecture, then the computation will be
+emulated, providing the correct answer but much slower than native
+dp4a.
+
 Software Compatibility:
 
-The library has been tested under Linux (Ubuntu 10.04 and 10.10) and
-Mac OS X using release 4.0 of the CUDA toolkit.  Default compilation
-creates a 32-bit binary, so 64-bit systems will require 32-bit c and
-c++ libraries installed for cross-compilation (gcc and g++ multilib).
+The library has been tested under Linux (Ubuntu 16.04 and CentOS 7)
+using release 9.2 of the CUDA toolkit.  However the expectation is
+that all versions of CUDA should be compatible.
 
 Hardward Compatibility:
 
 For a list of supported devices see,
 
-http://www.nvidia.com/object/cuda_learn_products.html
+https://developer.nvidia.com/cuda-gpus
 
+xGPU has been tested and known to work on all GPUs from Fermi onwards.
 While this library will run on pre-Fermi GPUs with appropriate changes
 to the Makefile, note that the kernels make Fermi-specific
 optimizations and so will likely lead to sub-standard performance on
-sm1.x CUDA architectures.  Initial tuning has taken place for the
-Kepler architecture, but this is far from complete.
+sm1.x CUDA architectures.  Note that as of CUDA 9.0, Fermi support has been
+removed from the CUDA toolkit with Kepler being the minimum.
 
 Building the Library:
 
@@ -34,6 +47,43 @@ and running "make".
 
   $ cd src
   $ make
+
+The default architecture that is targeted is Kepler (sm_35), though
+this can be overriden with the CUDA_ARCH variable.  E.g.,
+
+  $ make CUDA_ARCH=sm_60
+
+would build xGPU for Pascal GP100.  The possible options are
+
+arch    example chips               example products                    dp4a
+sm_20   GF100, GF110                Tesla 2050, Tesla 2070
+sm_21   GF114, GF116                GTX 460
+sm_30   GK104, GK106, GK107         Tesla K10, GTX 680
+sm_35   GK110, GK180                Tesla K20, Tesla K40
+sm_50   GM107, GM108                GTX 750
+sm_52   GM200, GM204, GM206, GM207  Tesla M40, Tesla M40, GTX 980
+sm_53   GM20B                       Jetson TX1
+sm_60   GP100                       Tesla P100
+sm_61   GP102, GP104, GP106, GP107  Tesla P40, Tesla P4, GTX 1080       x
+sm_62   GP10B                       Jetson TX2
+sm_70   GV100                       Tesla V100, Titan V                 x
+sm_72   GV10B                       Xavier                              x
+
+In general one should target the same architecture that they are
+running on.  While code compiled for an older architecture will in
+general run on a more recent architecture, this may lead to
+sub-optimal performance.  For example, native dp4a instructions will
+only be generated for specific architectures.
+
+Other options include
+
+  CUDA_DIR    # path to CUDA toolkit installation (default /usr/local/cuda)
+  DEBUG       # set any specific compiler flags (default is -O3)
+  TEXTURE_DIM # whether to use 1-d or 2-d textures (default is 1)
+  DP4A        # whether to use dp4a instruction (default is no)
+
+For the full list of environment variables that control compilation
+and installation options see the top of src/Makefile.
 
 Currently, a number of sizing parameters must be specified when
 building the library.  Default values of these parameters are
@@ -45,12 +95,12 @@ with there default values.
   NPOL=2
   NSTATION=256
   NFREQUENCY=10
-  NTIME=1000
-  NTIME_PIPE=100
+  NTIME=1024
+  NTIME_PIPE=128
 
-Note that NTIME_PIPE must be a multiple of 4 and NTIME must be a
-multiple of NTIME_PIPE.  The preprocessor will error out if those two
-conditions are not met.
+Note that NTIME_PIPE must be a multiple of 4 (16 when dp4a is used)
+and NTIME must be a multiple of NTIME_PIPE.  The preprocessor will
+error out if those two conditions are not met.
 
 For example, to compile with NSTATION set to 128 and all other
 parameters at their default values:
@@ -113,8 +163,8 @@ Astronomy Cross-Correlation with Graphics Processing units",
 
 Authors:
 
-Michael Clark (NVIDIA)
+Kate Clark (NVIDIA)
 Paul La Plante (Loyola University Maryland)
 Lincoln Greenhill (Harvard-Smithsonian Center for Astrophysics)
 David MacMahon (University of California, Berkeley)
-Ben Barsdell (Harvard-Smithsonian Center for Astrophysics)
+Ben Barsdell (NVIDIA)

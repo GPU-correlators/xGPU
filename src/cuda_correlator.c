@@ -157,11 +157,21 @@ int main(int argc, char** argv) {
     fprintf(stderr, "xgpuInit returned error code %d\n", xgpu_error);
     goto cleanup;
   }
+
+#ifndef DP4A
   ComplexInput *array_h = context.array_h; // this is pinned memory
+#else
+  ComplexInput *array_h = malloc(context.array_len*sizeof(ComplexInput));
+#endif
+
   Complex *cuda_matrix_h = context.matrix_h;
 
   // create an array of complex noise
   xgpuRandomComplex(array_h, xgpu_info.vecLength);
+
+#ifdef DP4A
+  xgpuSwizzleInput(context.array_h, array_h);
+#endif
 
   // ompXengine always uses TRIANGULAR_ORDER
   unsigned int ompMatLength = nfrequency * ((nstation+1)*(nstation/2)*npol*npol);
@@ -259,6 +269,10 @@ cleanup:
 
   // free gpu memory
   xgpuFree(&context);
+
+#ifdef DP4A
+  free(array_h);
+#endif
 
   if(hostAlloc) {
     free(context.array_h);
